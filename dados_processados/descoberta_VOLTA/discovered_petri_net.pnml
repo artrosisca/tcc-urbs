@@ -1,0 +1,233 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<pnml>
+  <net id="imdf_net_1780152080.5120468" type="http://www.pnml.org/version-2009/grammar/pnmlcoremodel">
+    <name>
+      <text>imdf_net_1780152080.5120468</text>
+    </name>
+    <page id="n0">
+      <place id="p_5">
+        <name>
+          <text>p_5</text>
+        </name>
+      </place>
+      <place id="p_7">
+        <name>
+          <text>p_7</text>
+        </name>
+      </place>
+      <place id="p_12">
+        <name>
+          <text>p_12</text>
+        </name>
+      </place>
+      <place id="p_19">
+        <name>
+          <text>p_19</text>
+        </name>
+      </place>
+      <place id="p_23">
+        <name>
+          <text>p_23</text>
+        </name>
+      </place>
+      <place id="p_18">
+        <name>
+          <text>p_18</text>
+        </name>
+      </place>
+      <place id="p_11">
+        <name>
+          <text>p_11</text>
+        </name>
+      </place>
+      <place id="p_17">
+        <name>
+          <text>p_17</text>
+        </name>
+      </place>
+      <place id="p_26">
+        <name>
+          <text>p_26</text>
+        </name>
+      </place>
+      <place id="p_6">
+        <name>
+          <text>p_6</text>
+        </name>
+      </place>
+      <place id="p_24">
+        <name>
+          <text>p_24</text>
+        </name>
+      </place>
+      <place id="source">
+        <name>
+          <text>source</text>
+        </name>
+        <initialMarking>
+          <text>1</text>
+        </initialMarking>
+      </place>
+      <place id="sink">
+        <name>
+          <text>sink</text>
+        </name>
+      </place>
+      <place id="p_9">
+        <name>
+          <text>p_9</text>
+        </name>
+      </place>
+      <place id="p_13">
+        <name>
+          <text>p_13</text>
+        </name>
+      </place>
+      <place id="p_16">
+        <name>
+          <text>p_16</text>
+        </name>
+      </place>
+      <place id="p_4">
+        <name>
+          <text>p_4</text>
+        </name>
+      </place>
+      <place id="p_15">
+        <name>
+          <text>p_15</text>
+        </name>
+      </place>
+      <place id="p_14">
+        <name>
+          <text>p_14</text>
+        </name>
+      </place>
+      <place id="p_20">
+        <name>
+          <text>p_20</text>
+        </name>
+      </place>
+      <transition id="tauSplit_1">
+        <name>
+          <text>tauSplit_1</text>
+        </name>
+        <toolspecific tool="ProM" version="6.4" activity="$invisible$" localNodeID="7499f973-f9ca-4d81-bb60-3390f28e8527"/>
+      </transition>
+      <transition id="8871e58c-b7e4-4f9a-bc82-aaf0f0bc1624">
+        <name>
+          <text>PASSAGEM_Rua Cidade de Palmas, 497 - SÃ­tio Cercado</text>
+        </name>
+      </transition>
+      <transition id="e08c923b-31c2-43c8-9ce0-d91842598ff4">
+        <name>
+          <text>PASSAGEM_Rua SÃ£o JosÃ© dos Pinhais, 648 - SÃ­tio Cercado</text>
+        </name>
+      </transition>
+      <transition id="c73d74e7-b7af-4630-b2a1-7b608db6f2e1">
+        <name>
+          <text>PASSAGEM_Rua Cidade de Palmas, 297 - SÃ­tio Cercado</text>
+        </name>
+      </transition>
+      <transition id="bff45e1a-d57b-497e-a7cd-57338d37b502">
+        <name>
+          <text>PASSAGEM_Rua SÃ£o JosÃ© dos Pinhais, 108 - SÃ­tio Cercado</text>
+        </name>
+      </transition>
+      <transition id="96384d7f-f5f1-435d-9c21-07a3ac3581ff">
+        <name>
+          <text>PASSAGEM_Rua SÃ£o JosÃ© dos Pinhais, 1744 - SÃ­tio Cercado</text>
+        </name>
+      </transition>
+      <transition id="e4cdb7e5-eb84-4883-8450-f815ed9a7dfb">
+        <name>
+          <text>PASSAGEM_Rua Des. Carlos Pinheiro GuimarÃ£es, 941 - SÃ­tio Cercado</text>
+        </name>
+      </transition>
+      <transition id="0f9129aa-fa89-4890-87bd-fa3414a3a5c4">
+        <name>
+          <text>PASSAGEM_Rua Agenor AntÃ´nio Rodrigues, 1418 - SÃ­tio Cercado</text>
+        </name>
+      </transition>
+      <transition id="1546fe5d-1413-4148-936e-315db154aeee">
+        <name>
+          <text>PASSAGEM_Rua SÃ£o JosÃ© dos Pinhais, 1176 - SÃ­tio Cercado</text>
+        </name>
+      </transition>
+      <transition id="999702be-f063-4431-bace-19ed919ae692">
+        <name>
+          <text>PASSAGEM_Rua SÃ£o JosÃ© dos Pinhais, 1432 - SÃ­tio Cercado</text>
+        </name>
+      </transition>
+      <transition id="54b97e8d-f83e-4355-b5a3-26fe3d023906">
+        <name>
+          <text>PASSAGEM_Rua Cidade de Palmas, 723 - SÃ­tio Cercado</text>
+        </name>
+      </transition>
+      <transition id="f3a3ef24-a866-40ad-90c4-abc7577dbfe6">
+        <name>
+          <text>PASSAGEM_Rua SÃ£o JosÃ© dos Pinhais, 358 - SÃ­tio Cercado</text>
+        </name>
+      </transition>
+      <transition id="fd53cc28-fa08-4a65-aa78-4b92826ad65e">
+        <name>
+          <text>PASSAGEM_Rua SÃ£o JosÃ© dos Pinhais, 868 - SÃ­tio Cercado</text>
+        </name>
+      </transition>
+      <transition id="652c2883-a6ca-400c-8d78-ce3a3ff41481">
+        <name>
+          <text>PASSAGEM_Terminal SÃ­tio Cercado - 541 - Bairro Novo A</text>
+        </name>
+      </transition>
+      <arc id="2425564788736" source="96384d7f-f5f1-435d-9c21-07a3ac3581ff" target="p_14"/>
+      <arc id="2425565645568" source="e4cdb7e5-eb84-4883-8450-f815ed9a7dfb" target="p_9"/>
+      <arc id="2425565646720" source="tauSplit_1" target="p_19"/>
+      <arc id="2425565647872" source="p_9" target="8871e58c-b7e4-4f9a-bc82-aaf0f0bc1624"/>
+      <arc id="2425565430800" source="p_11" target="bff45e1a-d57b-497e-a7cd-57338d37b502"/>
+      <arc id="2425565648016" source="p_7" target="8871e58c-b7e4-4f9a-bc82-aaf0f0bc1624"/>
+      <arc id="2425565238416" source="0f9129aa-fa89-4890-87bd-fa3414a3a5c4" target="p_5"/>
+      <arc id="2425564790032" source="999702be-f063-4431-bace-19ed919ae692" target="p_18"/>
+      <arc id="2425565646864" source="tauSplit_1" target="p_11"/>
+      <arc id="2425565644560" source="p_24" target="e08c923b-31c2-43c8-9ce0-d91842598ff4"/>
+      <arc id="2425565483040" source="bff45e1a-d57b-497e-a7cd-57338d37b502" target="p_12"/>
+      <arc id="2425564789024" source="p_15" target="1546fe5d-1413-4148-936e-315db154aeee"/>
+      <arc id="2425565647440" source="tauSplit_1" target="p_23"/>
+      <arc id="2425565647008" source="tauSplit_1" target="p_13"/>
+      <arc id="2425565648160" source="p_18" target="e4cdb7e5-eb84-4883-8450-f815ed9a7dfb"/>
+      <arc id="2425565318192" source="p_4" target="0f9129aa-fa89-4890-87bd-fa3414a3a5c4"/>
+      <arc id="2425565300400" source="tauSplit_1" target="p_6"/>
+      <arc id="2425565647152" source="tauSplit_1" target="p_15"/>
+      <arc id="2425564852016" source="p_13" target="96384d7f-f5f1-435d-9c21-07a3ac3581ff"/>
+      <arc id="2425565643984" source="fd53cc28-fa08-4a65-aa78-4b92826ad65e" target="p_24"/>
+      <arc id="2425565648304" source="p_24" target="e4cdb7e5-eb84-4883-8450-f815ed9a7dfb"/>
+      <arc id="2425565646000" source="8871e58c-b7e4-4f9a-bc82-aaf0f0bc1624" target="p_26"/>
+      <arc id="2425564789312" source="1546fe5d-1413-4148-936e-315db154aeee" target="p_16"/>
+      <arc id="2425564790464" source="p_19" target="f3a3ef24-a866-40ad-90c4-abc7577dbfe6"/>
+      <arc id="2425565643840" source="p_23" target="fd53cc28-fa08-4a65-aa78-4b92826ad65e"/>
+      <arc id="2425565648448" source="p_12" target="e4cdb7e5-eb84-4883-8450-f815ed9a7dfb"/>
+      <arc id="2425565646144" source="p_26" target="54b97e8d-f83e-4355-b5a3-26fe3d023906"/>
+      <arc id="2425565647296" source="tauSplit_1" target="p_17"/>
+      <arc id="2425564804304" source="source" target="tauSplit_1"/>
+      <arc id="2425565578576" source="tauSplit_1" target="p_4"/>
+      <arc id="2425565496400" source="p_6" target="c73d74e7-b7af-4630-b2a1-7b608db6f2e1"/>
+      <arc id="2425565495376" source="c73d74e7-b7af-4630-b2a1-7b608db6f2e1" target="p_7"/>
+      <arc id="2425564790608" source="f3a3ef24-a866-40ad-90c4-abc7577dbfe6" target="p_20"/>
+      <arc id="2425565648592" source="p_20" target="e4cdb7e5-eb84-4883-8450-f815ed9a7dfb"/>
+      <arc id="2425565644128" source="p_23" target="652c2883-a6ca-400c-8d78-ce3a3ff41481"/>
+      <arc id="2425565646432" source="e08c923b-31c2-43c8-9ce0-d91842598ff4" target="p_23"/>
+      <arc id="2425565648736" source="p_16" target="e4cdb7e5-eb84-4883-8450-f815ed9a7dfb"/>
+      <arc id="2425564789744" source="p_17" target="999702be-f063-4431-bace-19ed919ae692"/>
+      <arc id="2425565644272" source="652c2883-a6ca-400c-8d78-ce3a3ff41481" target="p_24"/>
+      <arc id="2425565648880" source="p_14" target="e4cdb7e5-eb84-4883-8450-f815ed9a7dfb"/>
+      <arc id="2425565647728" source="p_5" target="8871e58c-b7e4-4f9a-bc82-aaf0f0bc1624"/>
+      <arc id="2425565646288" source="54b97e8d-f83e-4355-b5a3-26fe3d023906" target="sink"/>
+    </page>
+    <finalmarkings>
+      <marking>
+        <place idref="sink">
+          <text>1</text>
+        </place>
+      </marking>
+    </finalmarkings>
+  </net>
+</pnml>

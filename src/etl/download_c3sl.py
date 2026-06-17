@@ -5,8 +5,8 @@ from urllib.parse import urljoin
 from concurrent.futures import ThreadPoolExecutor
 
 BASE_URL = "https://dadosabertos.c3sl.ufpr.br/curitibaurbs/"
-DATA_DIR = "dados_em_tempo_real_2026"
-DEST_DIR = "dados_c3sl"
+DATA_DIR = "data/dados_em_tempo_real_2026"
+DEST_DIR = "data/dados_c3sl"
 
 def get_target_dates():
     """Gets the list of dates in YYYY_MM_DD format from the directories in DATA_DIR."""
@@ -70,7 +70,7 @@ def download_file(url, filepath):
 def main():
     target_dates = get_target_dates()
     if not target_dates:
-        print("No target dates found in dados_em_tempo_real_2026.")
+        print("No target dates found in data/dados_em_tempo_real_2026.")
         return
     
     print(f"Found {len(target_dates)} target dates: {target_dates[0]} to {target_dates[-1]}")

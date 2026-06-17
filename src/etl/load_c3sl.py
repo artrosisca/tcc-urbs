@@ -30,7 +30,7 @@ def fix_encoding(text):
         except:
             return text
 
-def load_static_data(date_str, line_code, c3sl_dir="dados_c3sl"):
+def load_static_data(date_str, line_code, c3sl_dir="data/dados_c3sl"):
     """
     Carrega dados estáticos (pontos de parada, tabela planejada e shape da linha) para uma linha específica e data.
     

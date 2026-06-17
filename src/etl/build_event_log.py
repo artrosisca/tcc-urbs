@@ -6,7 +6,7 @@ from src.etl.load_realtime import load_realtime_data
 from src.etl.clean_data import clean_gps_data
 from src.etl.geofencing import match_trip_events
 
-def build_event_log(line_code, start_date, end_date, output_dir="dados_processados"):
+def build_event_log(line_code, start_date, end_date, output_dir="data/dados_processados"):
     """
     Gera o Log de Eventos consolidado no formato adequado para Mineração de Processos (PM4Py).
     

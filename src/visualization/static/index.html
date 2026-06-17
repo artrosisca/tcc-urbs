@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Mining URBS — CCO Dashboard</title>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- BARRA LATERAL (FILTROS) -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="logo-icon">🚌</span>
+                <h2>CCO URBS</h2>
+            </div>
+            
+            <div class="filter-section">
+                <!-- ETAPA 1: SELEÇÃO DE REGIME -->
+                <div class="form-group highlight-group">
+                    <label style="color: #78350f; font-weight: 700; font-size: 13px;">Passo 1: Selecione o Regime</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="regime" value="A">
+                            <span>Regime A: 2 min (Out/25)</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="regime" value="B">
+                            <span>Regime B: 20s (Dez/25)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- ETAPA 2: OUTROS FILTROS (INICIAM BLOQUEADOS) -->
+                <div id="locked-filters-container" class="locked-container">
+                    <h3>Filtros do Sistema</h3>
+                    
+                    <div class="form-group">
+                        <label for="select-linha">Linha de Ônibus</label>
+                        <select id="select-linha" class="form-control" disabled>
+                            <option value="">Selecione o regime primeiro...</option>
+                        </select>
+                    </div>
+
+                    <!-- DUAL HOUR RANGE SLIDER PARA HORARIOS -->
+                    <div class="form-group">
+                        <label>Faixa de Horário: <span id="hour-range-display" style="color: var(--text-main); font-weight: 700;">00:00 - 24:00</span></label>
+                        <div class="dual-range-slider-wrapper">
+                            <input type="range" id="hour-slider-min" min="0" max="24" value="0" class="range-slider" disabled>
+                            <input type="range" id="hour-slider-max" min="0" max="24" value="24" class="range-slider" disabled>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="chk-periodo-personalizado" disabled>
+                            <span>Período Personalizado</span>
+                        </label>
+                    </div>
+
+                    <div id="custom-date-inputs" class="form-group hidden">
+                        <div class="date-row">
+                            <div>
+                                <label for="date-inicio">Início</label>
+                                <input type="date" id="date-inicio" class="form-control" value="2025-10-24" disabled>
+                            </div>
+                            <div>
+                                <label for="date-fim">Fim</label>
+                                <input type="date" id="date-fim" class="form-control" value="2025-10-30" disabled>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Filtros Avançados</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="chk-convencional" checked disabled>
+                                <span>Convencional</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="chk-articulado" checked disabled>
+                                <span>Articulado</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="chk-biarticulado" checked disabled>
+                                <span>Biarticulado</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- BOTOES DE PROCESSAMENTO -->
+                    <div class="button-group-sidebar">
+                        <button id="btn-verificar" class="btn-secondary" disabled>
+                            Checar Viagens Disponíveis
+                        </button>
+                        <button id="btn-processar" class="btn-primary" disabled>
+                            Processar Mineração
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONSOLE DE LOGS EM TEMPO REAL -->
+            <div class="console-section">
+                <h3>Console de Operação (Real-time)</h3>
+                <div class="console-wrapper">
+                    <pre id="log-console">Selecione o Regime de dados para começar...</pre>
+                </div>
+            </div>
+        </aside>
+
+        <!-- CONTEÚDO PRINCIPAL -->
+        <main class="main-content">
+            <!-- CABEÇALHO -->
+            <header class="main-header">
+                <div class="header-title">
+                    <h1>Monitoramento CCO & Mineração de Processos</h1>
+                    <p>Central de Controle Operacional de Trajetórias de Ônibus — URBS Curitiba</p>
+                </div>
+            </header>
+
+            <!-- CONTAINER DE METRICAS (KPI CARDS) -->
+            <section class="kpi-container">
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-viagens">---</div>
+                    <div class="kpi-label">Viagens Mapeadas</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-eventos">---</div>
+                    <div class="kpi-label">Total de Eventos</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-veiculos">---</div>
+                    <div class="kpi-label">Veículos Únicos</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-interpolacao">---</div>
+                    <div class="kpi-label">Taxa de Interpolação</div>
+                </div>
+            </section>
+
+            <!-- SISTEMA DE ABAS -->
+            <section class="tabs-container">
+                <div class="tab-list">
+                    <button class="tab-btn active" data-tab="tab-mapa">Aba 1: Mapas Geográficos de Operação</button>
+                    <button class="tab-btn" data-tab="tab-descoberta">Aba 2: Descoberta de Processos</button>
+                    <button class="tab-btn" data-tab="tab-conformidade">Aba 3: Auditoria & Conformidade</button>
+                    <button class="tab-btn" data-tab="tab-desempenho">Aba 4: Desempenho & Gargalos</button>
+                </div>
+
+                <!-- CONTEÚDO DAS ABAS -->
+                <div class="tab-content">
+                    
+                    <!-- TAB 1: DOUBLE MAPS (MAP A AND MAP B) -->
+                    <div id="tab-mapa" class="tab-panel active">
+                        <div class="panel-header">
+                            <h2>Visualização de Mapas CCO Integrados</h2>
+                            <div class="control-row">
+                                <label for="select-sentido-mapa">Sentido:</label>
+                                <select id="select-sentido-mapa" class="form-control-sm">
+                                    <option value="VOLTA" selected>VOLTA</option>
+                                    <option value="IDA">IDA</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- GRID PARA OS DOIS MAPAS (MAP A E MAP B) -->
+                        <div class="double-maps-grid">
+                            <!-- MAP A: MAPA DE TRÁFEGO / CONGESTIONAMENTO -->
+                            <div class="map-box-wrapper">
+                                <div class="map-box-header">
+                                    <h3>Mapa A: Gargalos e Trechos (Velocidade Média)</h3>
+                                </div>
+                                <div class="map-container-inner">
+                                    <div id="map-congestion" class="map-element"></div>
+                                    <!-- LEGENDA DO MAPA A -->
+                                    <div class="map-legend-overlay-inner">
+                                        <div class="legend-item"><span class="legend-line line-theory"></span><span>Rota Teórica (Shape)</span></div>
+                                        <div class="legend-item"><span class="legend-line line-normal"></span><span>Normal (&ge; 20 km/h)</span></div>
+                                        <div class="legend-item"><span class="legend-line line-warning"></span><span>Moderado (12 - 20 km/h)</span></div>
+                                        <div class="legend-item"><span class="legend-line line-slow"></span><span>Lento (&lt; 12 km/h)</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- MAP B: REPLAY DA FROTA MULTIVEÍCULOS -->
+                            <div class="map-box-wrapper">
+                                <div class="map-box-header">
+                                    <h3>Mapa B: Replay da Frota (Simulador Histórico)</h3>
+                                </div>
+                                <div class="map-container-inner">
+                                    <div id="map-replay" class="map-element"></div>
+                                    
+                                    <!-- TIMELINE CONTROL PARA O REPLAY -->
+                                    <div class="replay-timeline-controls">
+                                        <div class="timeline-slider-row">
+                                            <button id="btn-replay-play" class="btn-timeline">▶ Play</button>
+                                            <input type="range" id="timeline-slider" min="0" max="100" value="0" class="timeline-slider-element">
+                                        </div>
+                                        <div class="timeline-meta-row">
+                                            <span>Horário do Replay: <strong id="replay-time-display">--:--:--</strong></span>
+                                            <span>Velocidade: 
+                                                <select id="select-replay-speed" class="form-control-xs">
+                                                    <option value="1">1x</option>
+                                                    <option value="5" selected>5x</option>
+                                                    <option value="10">10x</option>
+                                                    <option value="30">30x</option>
+                                                </select>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: DESCOBERTA -->
+                    <div id="tab-descoberta" class="tab-panel">
+                        <div class="panel-header">
+                            <h2>Rede de Petri Descoberta (Inductive Miner)</h2>
+                            <div class="control-row">
+                                <label for="select-sentido-descoberta">Sentido:</label>
+                                <select id="select-sentido-descoberta" class="form-control-sm">
+                                    <option value="VOLTA" selected>VOLTA</option>
+                                    <option value="IDA">IDA</option>
+                                </select>
+                                <button id="btn-zoom-in-desc" class="btn-sm">Zoom +</button>
+                                <button id="btn-zoom-out-desc" class="btn-sm">Zoom -</button>
+                                <button id="btn-reset-desc" class="btn-sm">Reset</button>
+                            </div>
+                        </div>
+                        <div class="graph-viewport" id="viewport-descoberta">
+                            <div class="graph-svg-container" id="svg-descoberta-container">
+                                <div class="placeholder-msg">Carregue os dados do pipeline primeiro para visualizar o modelo.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: CONFORMIDADE -->
+                    <div id="tab-conformidade" class="tab-panel">
+                        <div class="panel-header">
+                            <h2>Auditoria de Fidelidade de Rota (Token-Based Replay)</h2>
+                            <div class="control-row">
+                                <label for="select-sentido-conformidade">Sentido:</label>
+                                <select id="select-sentido-conformidade" class="form-control-sm">
+                                    <option value="VOLTA" selected>VOLTA</option>
+                                    <option value="IDA">IDA</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="conformance-layout">
+                            <div class="conformance-left">
+                                <div class="metric-group">
+                                    <div class="conf-metric-card">
+                                        <span class="conf-metric-value" id="val-avg-fitness">---</span>
+                                        <span class="conf-metric-label">Fitness Médio (TBR)</span>
+                                    </div>
+                                    <div class="conf-metric-card">
+                                        <span class="conf-metric-value" id="val-fit-pct">---</span>
+                                        <span class="conf-metric-label">Viagens 100% Conformantes</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="table-section">
+                                    <h3>Pontos Mais Pulados/Ignorados</h3>
+                                    <div class="table-wrapper">
+                                        <table class="data-table" id="table-skipped-stops">
+                                            <thead>
+                                                <tr>
+                                                    <th>Ponto de Parada</th>
+                                                    <th>Qtd. de Vezes Pulado</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td colspan="2" class="empty-table">Sem dados carregados</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="conformance-right">
+                                <div class="table-section full-height">
+                                    <h3>Detalhes de Viagens com Maior Desvio</h3>
+                                    <div class="table-wrapper">
+                                        <table class="data-table" id="table-deviant-trips">
+                                            <thead>
+                                                <tr>
+                                                    <th>Caso (ID)</th>
+                                                    <th>Prefixo</th>
+                                                    <th>Tabela</th>
+                                                    <th>Pulados</th>
+                                                    <th>Interpolados</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td colspan="5" class="empty-table">Sem dados carregados</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: DESEMPENHO -->
+                    <div id="tab-desempenho" class="tab-panel">
+                        <div class="panel-header">
+                            <h2>Directly-Follows Graph (DFG) de Tempos Operacionais</h2>
+                            <div class="control-row">
+                                <label for="select-sentido-desempenho">Sentido:</label>
+                                <select id="select-sentido-desempenho" class="form-control-sm">
+                                    <option value="VOLTA" selected>VOLTA</option>
+                                    <option value="IDA">IDA</option>
+                                </select>
+                                <button id="btn-zoom-in-des" class="btn-sm">Zoom +</button>
+                                <button id="btn-zoom-out-des" class="btn-sm">Zoom -</button>
+                                <button id="btn-reset-des" class="btn-sm">Reset</button>
+                            </div>
+                        </div>
+                        <div class="graph-viewport" id="viewport-desempenho">
+                            <div class="graph-svg-container" id="svg-desempenho-container">
+                                <div class="placeholder-msg">Carregue os dados do pipeline primeiro para visualizar o modelo.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Custom Application JS -->
+    <script src="/static/app.js"></script>
+</body>
+</html>

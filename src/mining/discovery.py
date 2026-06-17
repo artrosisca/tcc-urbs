@@ -2,7 +2,7 @@ import os
 import pm4py
 import pandas as pd
 
-def run_process_discovery(event_log, output_dir="dados_processados"):
+def run_process_discovery(event_log, output_dir="data/dados_processados"):
     """
     Executa os algoritmos de descoberta de processos (DFG, Inductive Miner e Heuristic Miner)
     sobre o log de eventos fornecido.
@@ -78,7 +78,7 @@ def run_process_discovery(event_log, output_dir="dados_processados"):
 if __name__ == "__main__":
     # Teste rápido: Carregar o log de eventos do teste do ETL
     # Se o arquivo não existir, pulamos
-    csv_path = "dados_processados/event_log_541_2025-10-24_2025-10-24.csv"
+    csv_path = "data/dados_processados/event_log_541_2025-10-24_2025-10-24.csv"
     if os.path.exists(csv_path):
         print(f"Lendo log de testes de: {csv_path}")
         df = pd.read_csv(csv_path)
@@ -88,6 +88,6 @@ if __name__ == "__main__":
         # Testar descoberta separada por sentido
         for direction, group in df.groupby('gps_direction'):
             print(f"\n=== DESCOBERTA SENTIDO: {direction} ({len(group)} eventos) ===")
-            run_process_discovery(group, output_dir=f"dados_processados/descoberta_{direction}")
+            run_process_discovery(group, output_dir=f"data/dados_processados/descoberta_{direction}")
     else:
         print("Arquivo de teste do Event Log não encontrado. Execute o ETL primeiro.")

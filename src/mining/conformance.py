@@ -156,7 +156,7 @@ if __name__ == "__main__":
     from src.etl.load_c3sl import load_static_data
     
     # Teste rápido
-    csv_path = "dados_processados/event_log_541_2025-10-24_2025-10-24.csv"
+    csv_path = "data/dados_processados/event_log_541_2025-10-24_2025-10-24.csv"
     if os.path.exists(csv_path):
         print(f"Lendo log de testes de: {csv_path}")
         df = pd.read_csv(csv_path)

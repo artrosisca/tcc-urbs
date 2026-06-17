@@ -1,21 +1,55 @@
 import os
-import streamlit as st
+import sys
+import queue
+import threading
+import io
+
+# Adicionar a raiz do projeto ao sys.path para resolver as importações do pacote 'src'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
+from fastapi import FastAPI, HTTPException, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, StreamingResponse
 import pandas as pd
 import numpy as np
-import folium
-from streamlit_folium import st_folium
-import plotly.express as px
-import plotly.graph_objects as go
 import pm4py
-from pm4py.visualization.dfg import visualizer as dfg_visualizer
-from pm4py.visualization.petri_net import visualizer as pn_visualizer
-from pm4py.visualization.heuristics_net import visualizer as hn_visualizer
 
 from src.etl.load_c3sl import load_static_data
+from src.mining.conformance import analyze_conformance
 
-@st.cache_data(show_spinner="Calculando linhas ativas em ambos os regimes...")
-def get_common_lines(data_dir="dados_em_tempo_real_2026"):
-    # Carregar do dia 2025-10-24 (Regime A)
+app = FastAPI(title="Process Mining URBS — CCO API")
+
+# Wrapper de stdout thread-safe para redirecionar saídas do pipeline para a fila do SSE
+class SSEStdoutRedirector:
+    def __init__(self, q):
+        self.q = q
+        self.buffer = []
+        
+    def write(self, s):
+        if s == '\n':
+            if self.buffer:
+                line = "".join(self.buffer)
+                self.q.put(line)
+                self.buffer = []
+        elif '\n' in s:
+            parts = s.split('\n')
+            for part in parts[:-1]:
+                self.buffer.append(part)
+                line = "".join(self.buffer)
+                self.q.put(line)
+                self.buffer = []
+            if parts[-1]:
+                self.buffer.append(parts[-1])
+        else:
+            self.buffer.append(s)
+            
+    def flush(self):
+        if self.buffer:
+            line = "".join(self.buffer)
+            self.q.put(line)
+            self.buffer = []
+
+def get_common_lines(data_dir="data/dados_em_tempo_real_2026"):
     dir_a = os.path.join(data_dir, '2025-10-24')
     lines_a = set()
     if os.path.exists(dir_a):
@@ -27,7 +61,6 @@ def get_common_lines(data_dir="dados_em_tempo_real_2026"):
                 except:
                     pass
                     
-    # Carregar do dia 2025-12-02 (Regime B)
     dir_b = os.path.join(data_dir, '2025-12-02')
     lines_b = set()
     if os.path.exists(dir_b):
@@ -42,225 +75,316 @@ def get_common_lines(data_dir="dados_em_tempo_real_2026"):
     intersection = lines_a.intersection(lines_b)
     intersection = {l for l in intersection if l != 'REC' and not l.startswith('X')}
     return sorted(list(intersection))
-from src.etl.build_event_log import build_event_log
-from src.mining.discovery import run_process_discovery
-from src.mining.conformance import analyze_conformance
-from src.mining.performance import analyze_segment_performance, analyze_schedule_delays
 
-# Configuração da página do Streamlit
-st.set_page_config(
-    page_title="Process Mining URBS — Transporte Público de Curitiba",
-    page_icon="🚌",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Estilo customizado CSS para estética premium
-st.markdown("""
-<style>
-    .main {
-        background-color: #0f111a;
-        color: #e6e6e6;
-        font-family: 'Inter', sans-serif;
-    }
-    .stApp {
-        background-color: #0f111a;
-    }
-    h1, h2, h3 {
-        color: #ffffff;
-        font-weight: 700;
-        letter-spacing: -0.5px;
-    }
-    div[data-testid="stSidebar"] {
-        background-color: #161925;
-        border-right: 1px solid #23283c;
-    }
-    .stButton>button {
-        background: linear-gradient(135deg, #ff4b4b 0%, #ff758c 100%);
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        font-weight: bold;
-        transition: all 0.3s ease;
-    }
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(255, 75, 75, 0.4);
-    }
-    .metric-card {
-        background-color: #1a1e2f;
-        padding: 1.5rem;
-        border-radius: 10px;
-        border: 1px solid #262c45;
-        text-align: center;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.15);
-    }
-    .metric-value {
-        font-size: 2.2rem;
-        font-weight: 800;
-        color: #ff4b4b;
-        margin-bottom: 0.2rem;
-    }
-    .metric-label {
-        font-size: 0.9rem;
-        color: #a0aec0;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# Título do App
-st.title("🚌 Mineração de Processos no Transporte Público")
-st.caption("Aplicação de Map Matching, Interpolação Temporal e Process Mining sobre dados de GPS da URBS de Curitiba")
-
-# ----------------- SIDEBAR -----------------
-st.sidebar.header("🛠️ Configurações de Análise")
-
-# Obter linhas em comum dinamicamente
-common_lines = get_common_lines()
-
-# Linha selecionável (apenas as que existem em ambos os regimes)
-linha_selecionada = st.sidebar.selectbox(
-    "Selecione a Linha de Ônibus:",
-    options=common_lines,
-    index=common_lines.index("541") if "541" in common_lines else 0,
-    help="Exibindo apenas as linhas ativas em ambos os regimes (Outubro e Dezembro)."
-)
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("📅 Período de Análise")
-st.sidebar.info("Recomenda-se comparar as duas semanas sob regimes diferentes:")
-
-# Opções rápidas de períodos de acordo com os regimes descobertos
-opcao_regime = st.sidebar.radio(
-    "Selecione o Período / Regime:",
-    options=[
-        "Regime A: Coleta de 2 min (Outubro/2025)",
-        "Regime B: Coleta de 20s (Dezembro/2025)",
-        "Personalizado"
-    ],
-    index=1
-)
-
-if opcao_regime == "Regime A: Coleta de 2 min (Outubro/2025)":
-    data_inicio = "2025-10-24"
-    data_fim = "2025-10-30"
-elif opcao_regime == "Regime B: Coleta de 20s (Dezembro/2025)":
-    data_inicio = "2025-12-02"
-    data_fim = "2025-12-08"
-else:
-    col_d1, col_d2 = st.sidebar.columns(2)
-    data_inicio = col_d1.date_input("Início", pd.to_datetime("2025-10-24")).strftime("%Y-%m-%d")
-    data_fim = col_d2.date_input("Fim", pd.to_datetime("2025-10-30")).strftime("%Y-%m-%d")
-
-# Raio do geofencing
-raio_geofence = st.sidebar.slider(
-    "Raio de Geofencing (metros):",
-    min_value=50,
-    max_value=200,
-    value=100,
-    step=10,
-    help="Raio recomendado de 100m cobre 88% das leituras do GPS."
-)
-
-st.sidebar.markdown("---")
-executar = st.sidebar.button("🚀 Executar Process Mining")
-
-# ----------------- CARREGAMENTO / PROCESSAMENTO -----------------
-# Cache para evitar re-processar dados idênticos em cliques
-@st.cache_data(show_spinner="Consolidando dados e construindo Event Log...")
-def process_data_pipeline(line, start_d, end_d, geofence_r):
-    # Gerar logs
-    df_log = build_event_log(line, start_d, end_d, output_dir="dados_processados")
-    static_data = load_static_data(start_d, line)
-    return df_log, static_data
-
-# Iniciar estado na sessão
-if 'event_log' not in st.session_state:
-    st.session_state['event_log'] = None
-    st.session_state['static_data'] = None
-    st.session_state['line_code'] = None
-    st.session_state['start_date'] = None
-    st.session_state['end_date'] = None
-
-if executar:
-    with st.spinner("Processando dados (ETL, Geofencing, Interpolação)..."):
-        df_log, static_data = process_data_pipeline(linha_selecionada, data_inicio, data_fim, raio_geofence)
-        
-        if not df_log.empty:
-            st.session_state['event_log'] = df_log
-            st.session_state['static_data'] = static_data
-            st.session_state['line_code'] = linha_selecionada
-            st.session_state['start_date'] = data_inicio
-            st.session_state['end_date'] = data_fim
-            st.success("Log de Eventos carregado e processado com sucesso!")
-        else:
-            st.error("Erro: Não foi possível obter dados para as datas selecionadas.")
-
-# Mostrar dashboard apenas se houver dados carregados
-if st.session_state['event_log'] is not None:
-    df_log = st.session_state['event_log']
-    static_data = st.session_state['static_data']
-    line_code = st.session_state['line_code']
-    start_date = st.session_state['start_date']
-    end_date = st.session_state['end_date']
+# Helper to filter DataFrame by start_hour and end_hour query params
+def filter_df_by_hours(df: pd.DataFrame, start_hour: str = None, end_hour: str = None) -> pd.DataFrame:
+    if df.empty:
+        return df
     
-    # ----------------- TABS DO DASHBOARD -----------------
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "🗺️ Visão Geral & Mapa", 
-        "🕸️ Grafos Descobertos (PM4Py)", 
-        "📊 Estatísticas DFG",
-        "🎯 Conformidade", 
-        "⚡ Desempenho & Gargalos"
-    ])
+    # Garantir datetime
+    df['time:timestamp'] = pd.to_datetime(df['time:timestamp'])
     
-    # ================= TAB 1: VISÃO GERAL & MAPA =================
-    with tab1:
-        st.header("📊 Resumo da Operação")
-        
-        # Cards de métricas premium
-        col1, col2, col3, col4 = st.columns(4)
-        
-        total_viagens = df_log['case:concept:name'].nunique()
-        total_eventos = len(df_log)
-        veiculos_ativos = df_log['org:resource'].nunique()
-        taxa_interpolacao = (df_log['interpolated'].sum() / len(df_log)) * 100
-        
-        with col1:
-            st.markdown(f'<div class="metric-card"><div class="metric-value">{total_viagens}</div><div class="metric-label">Viagens Mapeadas</div></div>', unsafe_allow_html=True)
-        with col2:
-            st.markdown(f'<div class="metric-card"><div class="metric-value">{total_eventos}</div><div class="metric-label">Total de Eventos</div></div>', unsafe_allow_html=True)
-        with col3:
-            st.markdown(f'<div class="metric-card"><div class="metric-value">{veiculos_ativos}</div><div class="metric-label">Veículos Únicos</div></div>', unsafe_allow_html=True)
-        with col4:
-            st.markdown(f'<div class="metric-card"><div class="metric-value">{taxa_interpolacao:.1f}%</div><div class="metric-label">Taxa de Interpolação (Gaps)</div></div>', unsafe_allow_html=True)
+    if start_hour and end_hour:
+        try:
+            if end_hour.startswith("24:00") or end_hour == "24:00":
+                end_hour = "23:59:59"
             
-        st.markdown("<br/>", unsafe_allow_html=True)
+            # Parsing robusto sem depender de strings de formato estritas
+            sh_split = start_hour.split(":")
+            eh_split = end_hour.split(":")
+            
+            from datetime import time
+            start_t = time(int(sh_split[0]), int(sh_split[1]) if len(sh_split) > 1 else 0)
+            end_t = time(
+                int(eh_split[0]), 
+                int(eh_split[1]) if len(eh_split) > 1 else 0, 
+                int(eh_split[2]) if len(eh_split) > 2 else 0
+            )
+            
+            # Filtro da faixa de horário
+            times = df['time:timestamp'].dt.time
+            df = df[(times >= start_t) & (times <= end_t)]
+        except Exception as e:
+            print(f"Erro ao filtrar faixas de horário ({start_hour} - {end_hour}): {str(e)}")
+            
+    return df
+
+# 1. Rota de Linhas em Comum
+@app.get("/api/lines")
+def read_lines(regime: str = None):
+    try:
+        import re
+        processed_dir = "data/dados_processados"
+        processed_lines = set()
+        if os.path.exists(processed_dir):
+            for f in os.listdir(processed_dir):
+                if f.startswith("event_log_") and f.endswith(".csv"):
+                    match = re.match(r"^event_log_(.+?)_(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})\.csv$", f)
+                    if match:
+                        line_code, start_date_str, end_date_str = match.groups()
+                        if regime == "A":
+                            if start_date_str == "2025-10-24":
+                                processed_lines.add(line_code)
+                        elif regime == "B":
+                            if start_date_str == "2025-12-02":
+                                processed_lines.add(line_code)
+                        else:
+                            processed_lines.add(line_code)
+                            
+        processed_lines = {l for l in processed_lines if l != 'REC' and not l.startswith('X')}
         
-        # Seção do Mapa
-        st.subheader("🗺️ Mapa Interativo da Rota e Paradas")
-        direction_map = st.selectbox("Selecione o Sentido para visualização:", ["VOLTA", "IDA"])
+        if not processed_lines:
+            data_dir = "data/dados_em_tempo_real_2026"
+            if regime == "A":
+                dir_a = os.path.join(data_dir, '2025-10-24')
+                lines_a = set()
+                if os.path.exists(dir_a):
+                    for f in os.listdir(dir_a):
+                        if f.endswith('.csv'):
+                            try:
+                                df = pd.read_csv(os.path.join(dir_a, f), usecols=['CODIGOLINHA'])
+                                lines_a.update(df['CODIGOLINHA'].dropna().astype(str).unique())
+                            except:
+                                pass
+                processed_lines = {l for l in lines_a if l != 'REC' and not l.startswith('X')}
+            elif regime == "B":
+                dir_b = os.path.join(data_dir, '2025-12-02')
+                lines_b = set()
+                if os.path.exists(dir_b):
+                    for f in os.listdir(dir_b):
+                        if f.endswith('.csv'):
+                            try:
+                                df = pd.read_csv(os.path.join(dir_b, f), usecols=['CODIGOLINHA'])
+                                lines_b.update(df['CODIGOLINHA'].dropna().astype(str).unique())
+                            except:
+                                pass
+                processed_lines = {l for l in lines_b if l != 'REC' and not l.startswith('X')}
+            else:
+                processed_lines = get_common_lines()
+                
+        return {"lines": sorted(list(processed_lines))}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 2. Endpoint de Streaming de Logs (SSE) do pipeline
+@app.get("/api/process-stream")
+def process_stream(line: str, start_date: str, end_date: str):
+    q = queue.Queue()
+    
+    def run_pipeline():
+        old_stdout = sys.stdout
+        sys.stdout = SSEStdoutRedirector(q)
+        try:
+            print(f"Iniciando pipeline de processamento para Linha: {line}...")
+            print(f"Período: {start_date} até {end_date}")
+            
+            from src.etl.build_event_log import build_event_log
+            
+            # Executa o pipeline de dados
+            df_log = build_event_log(line, start_date, end_date, output_dir="data/dados_processados")
+            # Força o carregamento dos metadados estáticos para garantir consistência
+            _ = load_static_data(start_date, line)
+            
+            if df_log.empty:
+                print("ERRO: Nenhum registro de GPS válido localizado para estes filtros.")
+                q.put("__FAILURE__")
+            else:
+                print("Pipeline finalizado: Log de Eventos consolidado e salvo com sucesso!")
+                q.put("__SUCCESS__")
+        except Exception as e:
+            print(f"ERRO CRÍTICO no processamento: {str(e)}")
+            q.put("__FAILURE__")
+        finally:
+            sys.stdout.flush()
+            sys.stdout = old_stdout
+            q.put(None)  # Envia marcador de encerramento da conexão
+            
+    threading.Thread(target=run_pipeline).start()
+    
+    def event_generator():
+        while True:
+            msg = q.get()
+            if msg is None:
+                break
+            yield f"data: {msg}\n\n"
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+def check_raw_gps_data(line_code: str, start_date: str, end_date: str, start_hour: str = None, end_hour: str = None, data_dir="data/dados_em_tempo_real_2026") -> int:
+    try:
+        from datetime import datetime, time
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    except Exception:
+        return 0
+
+    date_list = pd.date_range(start_dt, end_dt).strftime("%Y-%m-%d").tolist()
+    
+    start_h_int = 0
+    end_h_int = 24
+    if start_hour:
+        try:
+            start_h_int = int(start_hour.split(":")[0])
+        except:
+            pass
+    if end_hour:
+        try:
+            end_h_int = int(end_hour.split(":")[0])
+            if "23:59" in end_hour or "24:00" in end_hour:
+                end_h_int = 24
+        except:
+            pass
+            
+    total_records = 0
+    
+    for date_str in date_list:
+        day_dir = os.path.join(data_dir, date_str)
+        if not os.path.exists(day_dir):
+            day_dir_alt = os.path.join(data_dir, date_str.replace('-', '_'))
+            if os.path.exists(day_dir_alt):
+                day_dir = day_dir_alt
+            else:
+                continue
+                
+        try:
+            files = os.listdir(day_dir)
+        except:
+            continue
+            
+        for f in files:
+            if not f.endswith('.csv'):
+                continue
+                
+            try:
+                hour_part = int(f.split('_')[-1].split('-')[0])
+            except:
+                continue
+                
+            if hour_part < start_h_int or hour_part > end_h_int:
+                continue
+                
+            filepath = os.path.join(day_dir, f)
+            try:
+                df_temp = pd.read_csv(filepath, usecols=['CODIGOLINHA', 'request_timestamp'])
+                df_temp['CODIGOLINHA_clean'] = df_temp['CODIGOLINHA'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+                search_clean = str(line_code).strip().lstrip('0')
+                if not search_clean:
+                    search_clean = "0"
+                df_line = df_temp[
+                    (df_temp['CODIGOLINHA_clean'] == str(line_code).strip()) |
+                    (df_temp['CODIGOLINHA_clean'] == search_clean) |
+                    (df_temp['CODIGOLINHA_clean'].str.lstrip('0') == search_clean)
+                ]
+                if df_line.empty:
+                    continue
+                    
+                if start_hour or end_hour:
+                    df_line = df_line.copy()
+                    df_line['ts'] = pd.to_datetime(df_line['request_timestamp'])
+                    df_times = df_line['ts'].dt.time
+                    
+                    sh_split = start_hour.split(":") if start_hour else ["00", "00"]
+                    eh_split = end_hour.split(":") if end_hour else ["23", "59", "59"]
+                    if len(eh_split) == 2 and eh_split[0] == "24":
+                        eh_split = ["23", "59", "59"]
+                    elif len(eh_split) == 2 and eh_split[0] == "23" and eh_split[1] == "59":
+                        eh_split = ["23", "59", "59"]
+                        
+                    start_t = time(int(sh_split[0]), int(sh_split[1]) if len(sh_split) > 1 else 0)
+                    end_t = time(int(eh_split[0]), int(eh_split[1]) if len(eh_split) > 1 else 0, int(eh_split[2]) if len(eh_split) > 2 else 0)
+                    
+                    df_line = df_line[(df_times >= start_t) & (df_times <= end_t)]
+                    
+                total_records += len(df_line)
+            except Exception as e:
+                pass
+                
+    return total_records
+
+# 2.1. Endpoint para verificar quantidade de viagens disponíveis antes de processar
+@app.get("/api/check-trips")
+def check_trips(line: str, start_date: str, end_date: str, start_hour: str = None, end_hour: str = None):
+    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
+    if os.path.exists(csv_path):
+        try:
+            df = pd.read_csv(csv_path, usecols=['case:concept:name', 'time:timestamp'])
+            df = filter_df_by_hours(df, start_hour, end_hour)
+            count = int(df['case:concept:name'].nunique())
+            
+            if count > 0:
+                df['time:timestamp'] = pd.to_datetime(df['time:timestamp'])
+                min_time = df['time:timestamp'].min().strftime("%H:%M:%S")
+                max_time = df['time:timestamp'].max().strftime("%H:%M:%S")
+                msg = f"Já existem dados minerados! Encontradas {count} viagens processadas das {min_time} às {max_time}."
+            else:
+                msg = "Já existem dados minerados para esse período, mas não há viagens na faixa horária selecionada."
+                
+            return {
+                "exists": count > 0,
+                "count": count,
+                "message": msg,
+                "status": "processed"
+            }
+        except Exception as e:
+            pass
+            
+    try:
+        total_raw_points = check_raw_gps_data(line, start_date, end_date, start_hour, end_hour)
+        if total_raw_points > 0:
+            msg = f"Nenhum log processado ainda. Porém, foram encontrados {total_raw_points} pontos de GPS brutos para a linha {line} neste período/horário. Clique em 'Processar Mineração' para executar a mineração e ativar os mapas."
+        else:
+            msg = f"Nenhum registro bruto de GPS foi encontrado para a linha {line} no período/horário selecionados. Se você rodar a mineração, os mapas ficarão vazios."
+            
+        return {
+            "exists": total_raw_points > 0,
+            "count": total_raw_points,
+            "message": msg,
+            "status": "raw"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 3. Endpoint de Dados Geográficos do Mapa e Métricas Gerais (Com Filtro de Horário On-the-Fly)
+@app.get("/api/map-data")
+def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
+    if direction not in ["IDA", "VOLTA"]:
+        return {"stops": [], "shape": [], "segments": [], "replay_trips": [], "metrics": {}}
+    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
+    if not os.path.exists(csv_path):
+        raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
+        
+    try:
+        df_log_raw = pd.read_csv(csv_path)
+        static_data = load_static_data(start_date, line)
         
         stops_df = static_data['pontos']
         shape_df = static_data['shape']
         
-        # Resolver dinamicamente o sentido_static associado à direção selecionada (VOLTA/IDA)
-        df_log_dir = df_log[df_log['gps_direction'] == direction_map]
+        if stops_df.empty:
+            return {"stops": [], "shape": [], "segments": [], "replay_trips": [], "metrics": {}}
+            
+        # Filtrar o DataFrame consolidado com base na faixa horária e sentido
+        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
+        df_log_dir = df_log[df_log['gps_direction'] == direction]
+        
+        # Resolução do Sentido Estático Planejado
         sentido_static = None
         if not df_log_dir.empty:
             sample_stop_name = df_log_dir['concept:name'].iloc[0].replace('PASSAGEM_', '')
             matching_stops = stops_df[stops_df['NOME'] == sample_stop_name]
             if not matching_stops.empty:
                 sentido_static = matching_stops['SENTIDO'].iloc[0]
-        
+                
         if not sentido_static and not stops_df.empty:
-            sentido_static = stops_df['SENTIDO'].unique()[0]
-            
+            sentidos = stops_df['SENTIDO'].unique()
+            if len(sentidos) > 0:
+                if direction == 'VOLTA' or len(sentidos) == 1:
+                    sentido_static = sentidos[0]
+                else:
+                    sentido_static = sentidos[1]
+                    
         stops_filtered = stops_df[stops_df['SENTIDO'] == sentido_static].sort_values('SEQ').copy()
         
-        # Resolver dinamicamente a rota (shape) mais próxima para o sentido_static resolvido
+        shape_coords = []
         shape_filtered = pd.DataFrame()
         if not shape_df.empty and 'SHP' in shape_df.columns:
             shps = shape_df['SHP'].unique()
@@ -294,281 +418,330 @@ if st.session_state['event_log'] is not None:
                         if avg_dist < min_avg_dist:
                             min_avg_dist = avg_dist
                             best_shp = shp
-                    
                     if best_shp:
                         shape_filtered = shape_df[shape_df['SHP'] == best_shp].copy()
                         
-        if not stops_filtered.empty:
-            center_lat = stops_filtered['LAT'].mean()
-            center_lon = stops_filtered['LON'].mean()
-            
-            m = folium.Map(location=[center_lat, center_lon], zoom_start=14, tiles="cartodbpositron")
-            
-            # Desenhar o shape da rota (se disponível)
             if not shape_filtered.empty:
-                shape_coords = list(zip(shape_filtered['LAT'], shape_filtered['LON']))
-                folium.PolyLine(
-                    shape_coords, 
-                    color="#4A90E2", 
-                    weight=5, 
-                    opacity=0.8,
-                    tooltip=f"Shape Rota {direction_map}"
-                ).add_to(m)
+                shape_coords = list(zip(shape_filtered['LAT'].tolist(), shape_filtered['LON'].tolist()))
                 
-            # Desenhar as paradas
-            for idx, stop in stops_filtered.iterrows():
-                # Obter a quantidade de passagens por essa parada no event log
-                stop_name_log = f"PASSAGEM_{stop['NOME']}"
-                passages = len(df_log[(df_log['concept:name'] == stop_name_log) & (df_log['gps_direction'] == direction_map)])
-                
-                folium.CircleMarker(
-                    location=[stop['LAT'], stop['LON']],
-                    radius=7,
-                    color="#ff4b4b",
-                    fill=True,
-                    fill_color="#ff758c",
-                    fill_opacity=0.9,
-                    popup=f"<b>Seq:</b> {stop['SEQ']}<br/><b>Ponto:</b> {stop['NOME']}<br/><b>Passagens Reais:</b> {passages}"
-                ).add_to(m)
-                
-            st_folium(m, width=900, height=500, key=f"folium_map_{line_code}_{direction_map}_{start_date}_{end_date}")
-        else:
-            st.warning("Dados geográficos não disponíveis para o sentido selecionado.")
+        # Projeta paradas no shape
+        if not shape_filtered.empty and not stops_filtered.empty:
+            from src.etl.geofencing import map_gps_to_shape
+            shape_lats = shape_filtered['LAT'].values
+            shape_lons = shape_filtered['LON'].values
+            stop_shape_indices = map_gps_to_shape(stops_filtered['LAT'].values, stops_filtered['LON'].values, shape_lats, shape_lons)
+            stop_shape_indices = np.maximum.accumulate(stop_shape_indices)
+            stops_filtered['shape_idx'] = stop_shape_indices
+
+        # ALTERNATIVA A: Calcular velocidades agregadas de segmentos (Trecho i -> Trecho i+1)
+        segments = []
+        if not df_log_dir.empty and not shape_filtered.empty and not stops_filtered.empty:
+            stops_records = stops_filtered.to_dict('records')
             
-    # ================= TAB 2: GRAFOS DESCOBERTOS (PM4PY) =================
-    with tab2:
-        st.header("🕸️ Modelos de Processo Descobertos (PM4Py)")
-        st.write("Estes grafos de fluxo foram gerados diretamente a partir dos logs de eventos dos ônibus.")
-        
-        direction_model = st.selectbox("Sentido do Modelo:", ["VOLTA", "IDA"], key="model_dir")
-        
-        # Filtrar o log por sentido
-        df_log_dir = df_log[df_log['gps_direction'] == direction_model]
-        
-        if not df_log_dir.empty:
-            # Formatar para o PM4Py
-            log_pm4py = pm4py.format_dataframe(
-                df_log_dir,
-                case_id='case:concept:name',
-                activity_key='concept:name',
-                timestamp_key='time:timestamp'
-            )
-            
-            # Escolha do modelo
-            modelo_opcao = st.radio(
-                "Selecione o Modelo de Mineração de Processos:",
-                ["Directly-Follows Graph (DFG)", "Rede de Petri (Inductive Miner)", "Rede Heurística (Heuristic Miner)"],
-                horizontal=True
-            )
-            
-            if modelo_opcao == "Directly-Follows Graph (DFG)":
-                st.subheader("Directly-Follows Graph (DFG) do Fluxo Real")
-                st.caption("Mostra as conexões diretas entre as paradas e a frequência de passagens.")
-                dfg = pm4py.discover_dfg(log_pm4py)[0]
-                gviz = dfg_visualizer.apply(dfg, log=log_pm4py)
-                st.graphviz_chart(gviz)
+            # Para cada trecho entre as paradas consecutivas, calcular velocidade média da frota
+            for i in range(len(stops_records) - 1):
+                st1 = stops_records[i]
+                st2 = stops_records[i+1]
                 
-            elif modelo_opcao == "Rede de Petri (Inductive Miner)":
-                st.subheader("Rede de Petri Descoberta via Inductive Miner")
-                st.caption("Representa o modelo matemático de concorrência e caminhos (Lugares, Transições e Tokens).")
-                net, im, fm = pm4py.discover_petri_net_inductive(log_pm4py)
-                gviz = pn_visualizer.apply(net, im, fm)
-                st.graphviz_chart(gviz)
+                idx1 = st1['shape_idx']
+                idx2 = st2['shape_idx']
+                if idx1 > idx2:
+                    idx1, idx2 = idx2, idx1
+                    
+                seg_df = shape_filtered.iloc[idx1 : idx2 + 1]
+                seg_coords = list(zip(seg_df['LAT'].tolist(), seg_df['LON'].tolist()))
                 
-            elif modelo_opcao == "Rede Heurística (Heuristic Miner)":
-                st.subheader("Rede Heurística Descoberta")
-                st.caption("Modelo tolerante a ruídos que destaca os fluxos principais e omite caminhos excepcionais.")
-                hnet = pm4py.discover_heuristics_net(log_pm4py)
-                gviz = hn_visualizer.apply(hnet)
-                st.graphviz_chart(gviz)
-        else:
-            st.warning("Não há dados de GPS para o sentido selecionado.")
+                # Calcular distância do segmento
+                from src.etl.clean_data import haversine_vectorized
+                dist = 0.0
+                if len(seg_coords) > 1:
+                    lats = seg_df['LAT'].values
+                    lons = seg_df['LON'].values
+                    dists = haversine_vectorized(lats[:-1], lons[:-1], lats[1:], lons[1:])
+                    dist = float(dists.sum())
+                
+                # Coletar passagens de ônibus nesse trecho
+                speeds_list = []
+                stop_name_1 = f"PASSAGEM_{st1['NOME']}"
+                stop_name_2 = f"PASSAGEM_{st2['NOME']}"
+                
+                # Encontrar casos que passaram por ambos os pontos consecutivamente
+                cases_passed = df_log_dir[df_log_dir['concept:name'].isin([stop_name_1, stop_name_2])]
+                if not cases_passed.empty:
+                    grouped = cases_passed.groupby('case:concept:name')
+                    for case_id, group in grouped:
+                        if len(group) == 2:
+                            # Garantir que o seq da parada está ordenado
+                            g_sorted = group.sort_values('stop_seq')
+                            t1 = pd.to_datetime(g_sorted['time:timestamp'].iloc[0])
+                            t2 = pd.to_datetime(g_sorted['time:timestamp'].iloc[1])
+                            duration_sec = (t2 - t1).total_seconds()
+                            if duration_sec > 0:
+                                speeds_list.append((dist / duration_sec) * 3.6)
+                
+                # Velocidade agregada (mediana das velocidades ou 25 km/h por padrão se não houver dados)
+                avg_speed = float(np.median(speeds_list)) if speeds_list else 25.0
+                
+                # Cor conforme congestionamento
+                if avg_speed < 12.0:
+                    color = "#ff4b4b"  # Vermelho (Lento/Congestionado)
+                elif avg_speed < 20.0:
+                    color = "#f59e0b"  # Laranja (Atenção/Moderado)
+                else:
+                    color = "#ffffff"  # Branco (Livre/Normal)
+                    
+                segments.append({
+                    "from_stop": st1['NOME'],
+                    "to_stop": st2['NOME'],
+                    "coords": seg_coords,
+                    "speed": avg_speed,
+                    "color": color
+                })
+
+        # ALTERNATIVA B: Replay Multiveículos (Estrutura de dados das viagens ativas para o JS interpolar)
+        replay_trips = []
+        if not df_log_dir.empty and not shape_filtered.empty and not stops_filtered.empty:
+            cases_ids = df_log_dir['case:concept:name'].unique()
+            for cid in cases_ids:
+                c_events = df_log_dir[df_log_dir['case:concept:name'] == cid].sort_values('stop_seq')
+                
+                # Juntar coordenadas geográficas das paradas
+                c_merged = pd.merge(
+                    c_events[['stop_seq', 'time:timestamp']],
+                    stops_filtered[['SEQ', 'NOME', 'LAT', 'LON', 'shape_idx']],
+                    left_on='stop_seq',
+                    right_on='SEQ',
+                    how='inner'
+                ).sort_values('stop_seq')
+                
+                path_pts = []
+                for idx, row in c_merged.iterrows():
+                    path_pts.append({
+                        "time": row['time:timestamp'].isoformat() if hasattr(row['time:timestamp'], "isoformat") else str(row['time:timestamp']),
+                        "lat": float(row['LAT']),
+                        "lon": float(row['LON']),
+                        "stop_name": str(row['NOME'])
+                    })
+                
+                if len(path_pts) > 1:
+                    replay_trips.append({
+                        "case_id": cid,
+                        "vehicle": str(c_events['org:resource'].iloc[0]),
+                        "path": path_pts
+                    })
+
+        stops_list = []
+        for idx, stop in stops_filtered.iterrows():
+            stop_name_log = f"PASSAGEM_{stop['NOME']}"
+            df_stop_events = df_log_dir[df_log_dir['concept:name'] == stop_name_log]
+            passages = len(df_stop_events)
             
-    # ================= TAB 3: ESTATÍSTICAS DFG =================
-    with tab3:
-        st.header("📊 Estatísticas e Matriz DFG")
-        st.write("Visualização estatística das transições reais de pontos pelos ônibus.")
+            # Identifica se houve interpolação
+            is_interpolated = False
+            if not df_log_dir.empty:
+                rep_event = df_log_dir[df_log_dir['concept:name'] == stop_name_log]
+                if not rep_event.empty:
+                    is_interpolated = bool(rep_event['interpolated'].iloc[0])
+            
+            stops_list.append({
+                "seq": int(stop['SEQ']),
+                "nome": str(stop['NOME']),
+                "num": str(stop['NUM']),
+                "lat": float(stop['LAT']),
+                "lon": float(stop['LON']),
+                "passages": passages,
+                "interpolated": is_interpolated
+            })
+            
+        # Calcular KPIs Reais Gerais baseados na faixa filtrada
+        total_viagens = int(df_log_dir['case:concept:name'].nunique())
+        total_eventos = int(len(df_log_dir))
+        veiculos_ativos = int(df_log_dir['org:resource'].nunique())
+        taxa_interpolacao = float((df_log_dir['interpolated'].sum() / len(df_log_dir)) * 100) if len(df_log_dir) > 0 else 0.0
         
-        direction_dfg = st.selectbox("Sentido do Fluxo:", ["VOLTA", "IDA"], key="dfg_dir")
+        return {
+            "stops": stops_list,
+            "shape": shape_coords,
+            "segments": segments,
+            "replay_trips": replay_trips,
+            "metrics": {
+                "total_viagens": total_viagens,
+                "total_eventos": total_eventos,
+                "veiculos_ativos": veiculos_ativos,
+                "taxa_interpolacao": taxa_interpolacao
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 4. Endpoint de Descoberta de Processos (/api/discovery) -> Retorna SVG da Rede de Petri
+@app.get("/api/discovery")
+def get_discovery(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
+    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
+    if not os.path.exists(csv_path):
+        raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
-        # Filtrar o log por sentido
-        df_log_dir = df_log[df_log['gps_direction'] == direction_dfg]
+    try:
+        df_log_raw = pd.read_csv(csv_path)
+        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
+        df_log_dir = df_log[df_log['gps_direction'] == direction]
         
-        # Rodar descoberta usando pm4py
+        if df_log_dir.empty:
+            raise HTTPException(status_code=404, detail="Nenhum evento encontrado para este sentido.")
+            
+        # Formata logs para pm4py
         log_pm4py = pm4py.format_dataframe(
             df_log_dir,
             case_id='case:concept:name',
             activity_key='concept:name',
             timestamp_key='time:timestamp'
         )
-        dfg, start_activities, end_activities = pm4py.discover_dfg(log_pm4py)
         
-        # Converter DFG para dataframe para renderizar Plotly bar e tabela
-        dfg_list = []
-        for (act_a, act_b), freq in dfg.items():
-            dfg_list.append({
-                'Origem': act_a.replace('PASSAGEM_', ''),
-                'Destino': act_b.replace('PASSAGEM_', ''),
-                'Frequência': freq
-            })
-            
-        if dfg_list:
-            df_dfg = pd.DataFrame(dfg_list).sort_values(by='Frequência', ascending=False)
-            
-            # Gráfico de barras das transições mais comuns
-            fig_dfg = px.bar(
-                df_dfg.head(15),
-                x='Frequência',
-                y='Origem',
-                color='Frequência',
-                color_continuous_scale=px.colors.sequential.Reds,
-                title="Top 15 Transições de Paradas Mais Frequentes",
-                labels={'Origem': 'Parada de Origem'},
-                orientation='h'
-            )
-            fig_dfg.update_layout(yaxis={'categoryorder': 'total ascending'}, template="plotly_dark")
-            st.plotly_chart(fig_dfg, use_container_width=True)
-            
-            # Tabela de transições interativa
-            st.subheader("📋 Matriz de Transição Detalhada")
-            st.dataframe(df_dfg, use_container_width=True)
-        else:
-            st.warning("Não há transições registradas para o sentido selecionado.")
-            
-    # ================= TAB 4: CONFORMIDADE =================
-    with tab4:
-        st.header("🎯 Análise de Conformidade (Conformance Checking)")
-        st.write("Verificação de fidelidade com relação à rota estrita e identificação de pontos de parada pulados.")
+        # Descoberta de Rede de Petri
+        net, im, fm = pm4py.discover_petri_net_inductive(log_pm4py)
         
-        direction_conf = st.selectbox("Sentido para Conformidade:", ["VOLTA", "IDA"], key="conf_dir")
+        # Visualização e conversão para SVG
+        from pm4py.visualization.petri_net import visualizer as pn_visualizer
+        try:
+            gviz = pn_visualizer.apply(net, im, fm)
+            svg_data = gviz.pipe(format='svg')
+        except Exception as visualizer_error:
+            # Fallback elegant SVG when Graphviz/dot is not available or fails
+            svg_data = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="100%" height="100%">
+  <rect width="100%" height="100%" fill="#121214" rx="10"/>
+  <text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" fill="#ff4b4b" font-family="'Inter', sans-serif" font-size="16px" font-weight="bold">
+    Graphviz (dot) Não Encontrado ou Falhou
+  </text>
+  <text x="50%" y="65%" dominant-baseline="middle" text-anchor="middle" fill="#cbd5e1" font-family="'Inter', sans-serif" font-size="12px">
+    Para visualizar a representação do modelo, instale o Graphviz e adicione-o ao PATH do sistema.
+  </text>
+  <text x="50%" y="80%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-family="'Inter', sans-serif" font-size="11px">
+    Dica: Execute 'choco install graphviz -y' como Administrador no terminal Windows.
+  </text>
+</svg>"""
+        return Response(content=svg_data, media_type="image/svg+xml")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 5. Endpoint de Conformidade (/api/conformance) -> Retorna trace fitness e paradas puladas em JSON
+@app.get("/api/conformance")
+def get_conformance(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
+    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
+    if not os.path.exists(csv_path):
+        raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
-        # Rodar análise de conformidade
+    try:
+        df_log_raw = pd.read_csv(csv_path)
+        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
+        df_log['time:timestamp'] = pd.to_datetime(df_log['time:timestamp'])
+        static_data = load_static_data(start_date, line)
+        
+        # Executa análise de conformidade existente
         conformance_res = analyze_conformance(df_log, static_data['pontos'])
         
-        if direction_conf in conformance_res:
-            c_data = conformance_res[direction_conf]
+        if direction not in conformance_res:
+            return {"avg_fitness": 0.0, "fit_percentage": 0.0, "total_cases": 0, "skipped_stops": [], "deviant_trips": []}
             
-            # Métricas
-            col_c1, col_c2, col_c3 = st.columns(3)
-            with col_c1:
-                st.markdown(f'<div class="metric-card"><div class="metric-value">{c_data["avg_fitness"]:.3f}</div><div class="metric-label">Fitness Médio (TBR)</div></div>', unsafe_allow_html=True)
-            with col_c2:
-                st.markdown(f'<div class="metric-card"><div class="metric-value">{c_data["fit_percentage"]:.1f}%</div><div class="metric-label">Viagens 100% Conformantes</div></div>', unsafe_allow_html=True)
-            with col_c3:
-                st.markdown(f'<div class="metric-card"><div class="metric-value">{c_data["total_cases"]}</div><div class="metric-label">Total de Viagens Reais</div></div>', unsafe_allow_html=True)
-                
-            st.markdown("<br/>", unsafe_allow_html=True)
-            
-            # Gráfico de desvios (skipped stops)
-            df_dev = c_data['deviations']
-            
-            # Contar frequências de cada ponto de parada pulado
-            skipped_stops_all = []
-            for stops in df_dev['skipped_stops']:
-                skipped_stops_all.extend(stops)
-                
-            st.subheader("❌ Paradas Puladas (Skipped Stops)")
-            if skipped_stops_all:
-                skipped_counts = pd.Series(skipped_stops_all).value_counts().reset_index()
-                skipped_counts.columns = ['Parada', 'Qtd. de Vezes Pulada']
-                
-                fig_skip = px.bar(
-                    skipped_counts,
-                    x='Qtd. de Vezes Pulada',
-                    y='Parada',
-                    color='Qtd. de Vezes Pulada',
-                    color_continuous_scale=px.colors.sequential.Oranges,
-                    title="Frequência de Pontos Pulados/Ignorados pelos Ônibus",
-                    orientation='h'
-                )
-                fig_skip.update_layout(yaxis={'categoryorder': 'total ascending'}, template="plotly_dark")
-                st.plotly_chart(fig_skip, use_container_width=True)
-            else:
-                st.success("Nenhuma parada foi pulada no período! Excelente conformidade operacional.")
-                
-            # Exibir logs de maior desvio
-            st.subheader("📋 Detalhes de Viagens com Desvios")
-            st.dataframe(df_dev[['case_id', 'vehicle', 'tabela', 'total_visited', 'skipped_count', 'skipped_stops', 'interpolated_count']], use_container_width=True)
-        else:
-            st.warning("Dados de conformidade não disponíveis para o sentido selecionado.")
-            
-    # ================= TAB 5: DESEMPENHO & GARGALOS =================
-    with tab5:
-        st.header("⚡ Análise de Desempenho Operational")
-        st.write("Identificação de gargalos de velocidade e pontualidade frente à tabela horária planejada.")
+        c_data = conformance_res[direction]
+        df_dev = c_data['deviations']
         
-        # 1. Análise de Gargalos por Segmento
-        st.subheader("⏳ Tempos Médios de Viagem por Segmento")
-        st.write("Os trechos com maior tempo médio indicam as áreas de maior lentidão/congestionamento da rota.")
-        
-        direction_perf = st.selectbox("Sentido para Performance:", ["VOLTA", "IDA"], key="perf_dir")
-        
-        # Filtrar log
-        df_log_dir = df_log[df_log['gps_direction'] == direction_perf]
-        segment_stats = analyze_segment_performance(df_log_dir)
-        
-        if not segment_stats.empty:
-            fig_seg = px.bar(
-                segment_stats.head(10),
-                x='mean_time_min',
-                y='segment_name',
-                color='mean_time_min',
-                color_continuous_scale=px.colors.sequential.Viridis,
-                title="Top 10 Trechos Mais Lentos da Linha (Tempo em Minutos)",
-                labels={'mean_time_min': 'Tempo Médio (min)', 'segment_name': 'Trecho'},
-                orientation='h'
-            )
-            fig_seg.update_layout(yaxis={'categoryorder': 'total ascending'}, template="plotly_dark")
-            st.plotly_chart(fig_seg, use_container_width=True)
+        # Contagem de pontos de parada pulados
+        skipped_stops_all = []
+        for stops in df_dev['skipped_stops']:
+            skipped_stops_all.extend(stops)
             
-            st.dataframe(segment_stats[['segment_name', 'total_passages', 'mean_time_min', 'median_time_min', 'max_time_min', 'min_time_min']], use_container_width=True)
-        else:
-            st.warning("Estatísticas de tempo não disponíveis.")
-            
-        # 2. Análise de Atrasos/Pontualidade
-        st.markdown("---")
-        st.subheader("🕒 Pontualidade (Comparação com a Tabela Horária Planejada)")
-        st.write("Análise dos atrasos e adiantamentos das saídas dos ônibus em relação aos horários programados pela URBS.")
+        skipped_counts = []
+        if skipped_stops_all:
+            series = pd.Series(skipped_stops_all).value_counts()
+            for stop_name, count in series.items():
+                skipped_counts.append({
+                    "stop_name": str(stop_name),
+                    "count": int(count)
+                })
+                
+        # Top 10 viagens com mais desvios
+        deviant_trips = []
+        if not df_dev.empty:
+            df_dev_sorted = df_dev.sort_values(by='skipped_count', ascending=False).head(10)
+            for idx, row in df_dev_sorted.iterrows():
+                deviant_trips.append({
+                    "case_id": str(row['case_id']),
+                    "vehicle": str(row['vehicle']),
+                    "tabela": str(row['tabela']),
+                    "total_visited": int(row['total_visited']),
+                    "skipped_count": int(row['skipped_count']),
+                    "skipped_stops": row['skipped_stops'],
+                    "interpolated_count": int(row['interpolated_count'])
+                })
+                
+        return {
+            "avg_fitness": float(c_data['avg_fitness']),
+            "fit_percentage": float(c_data['fit_percentage']),
+            "total_cases": int(c_data['total_cases']),
+            "skipped_stops": skipped_counts,
+            "deviant_trips": deviant_trips
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 6. Endpoint de Desempenho (/api/performance) -> Retorna SVG do Performance DFG (travel times)
+@app.get("/api/performance")
+def get_performance(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
+    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
+    if not os.path.exists(csv_path):
+        raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
-        df_delays = analyze_schedule_delays(df_log, static_data['tabela'], start_date, static_data['pontos'])
+    try:
+        df_log_raw = pd.read_csv(csv_path)
+        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
+        df_log_dir = df_log[df_log['gps_direction'] == direction]
         
-        if not df_delays.empty:
-            # Gráfico de Pizza de Status de Pontualidade
-            col_p1, col_p2 = st.columns(2)
+        if df_log_dir.empty:
+            raise HTTPException(status_code=404, detail="Nenhum evento encontrado para este sentido.")
             
-            with col_p1:
-                status_counts = df_delays['status'].value_counts().reset_index()
-                status_counts.columns = ['Status', 'Quantidade']
-                
-                # Mapeamento de cores: No Horário (Verde), Atrasado (Vermelho), Adiantado (Amarelo/Laranja)
-                color_map = {'NO HORÁRIO': '#2ecc71', 'ATRASADO': '#e74c3c', 'ADIANTADO': '#f1c40f'}
-                
-                fig_pie = px.pie(
-                    status_counts,
-                    values='Quantidade',
-                    names='Status',
-                    color='Status',
-                    color_discrete_map=color_map,
-                    title="Distribuição de Pontualidade das Saídas"
-                )
-                fig_pie.update_layout(template="plotly_dark")
-                st.plotly_chart(fig_pie, use_container_width=True)
-                
-            with col_p2:
-                # Histograma de minutos de atraso
-                fig_hist = px.histogram(
-                    df_delays,
-                    x='delay_minutes',
-                    color='direction',
-                    nbins=20,
-                    title="Distribuição dos Desvios Horários (em minutos)",
-                    labels={'delay_minutes': 'Minutos de Desvio (positivo = atraso)'}
-                )
-                fig_hist.update_layout(template="plotly_dark")
-                st.plotly_chart(fig_hist, use_container_width=True)
-                
-            st.dataframe(df_delays[['case_id', 'vehicle', 'tabela', 'direction', 'planned_departure', 'actual_departure', 'delay_minutes', 'status']], use_container_width=True)
-        else:
-            st.info("Nenhuma partida programada coincidiu na janela horária avaliada.")
-else:
-    st.info("Use o botão na barra lateral para carregar e processar os dados de Process Mining.")
+        log_pm4py = pm4py.format_dataframe(
+            df_log_dir,
+            case_id='case:concept:name',
+            activity_key='concept:name',
+            timestamp_key='time:timestamp'
+        )
+        
+        # Descoberta de Performance DFG
+        performance_dfg, start_act, end_act = pm4py.discover_performance_dfg(log_pm4py)
+        
+        # Visualização de Performance DFG como SVG
+        from pm4py.visualization.dfg import visualizer as dfg_visualizer
+        try:
+            gviz = dfg_visualizer.apply(performance_dfg, log=log_pm4py, variant=dfg_visualizer.Variants.PERFORMANCE)
+            svg_data = gviz.pipe(format='svg')
+        except Exception as visualizer_error:
+            # Fallback elegant SVG when Graphviz/dot is not available or fails
+            svg_data = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="100%" height="100%">
+  <rect width="100%" height="100%" fill="#121214" rx="10"/>
+  <text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" fill="#ff4b4b" font-family="'Inter', sans-serif" font-size="16px" font-weight="bold">
+    Graphviz (dot) Não Encontrado ou Falhou
+  </text>
+  <text x="50%" y="65%" dominant-baseline="middle" text-anchor="middle" fill="#cbd5e1" font-family="'Inter', sans-serif" font-size="12px">
+    Para visualizar o Directly-Follows Graph, instale o Graphviz e adicione-o ao PATH do sistema.
+  </text>
+  <text x="50%" y="80%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-family="'Inter', sans-serif" font-size="11px">
+    Dica: Execute 'choco install graphviz -y' como Administrador no terminal Windows.
+  </text>
+</svg>"""
+        return Response(content=svg_data, media_type="image/svg+xml")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 7. Configuração e montagem dos arquivos estáticos do front-end
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir)
+
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+@app.get("/")
+def read_root():
+    index_path = os.path.join(static_dir, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return Response(content="Front-end index.html não localizado. Crie o arquivo na pasta 'static'.", status_code=404)

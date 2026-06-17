@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from datetime import datetime
 
-def load_realtime_data(line_code, start_date, end_date, data_dir="dados_em_tempo_real_2026"):
+def load_realtime_data(line_code, start_date, end_date, data_dir="data/dados_em_tempo_real_2026"):
     """
     Carrega e consolida dados em tempo real para uma linha específica e um período.
     
@@ -48,8 +48,15 @@ def load_realtime_data(line_code, start_date, end_date, data_dir="dados_em_tempo
                 df_temp = pd.read_csv(filepath)
                 # Filtrar imediatamente pela linha
                 if 'CODIGOLINHA' in df_temp.columns:
-                    # Garantir que é string para comparação
-                    df_filtered = df_temp[df_temp['CODIGOLINHA'].astype(str) == str(line_code)].copy()
+                    df_temp['CODIGOLINHA_clean'] = df_temp['CODIGOLINHA'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+                    search_clean = str(line_code).strip().lstrip('0')
+                    if not search_clean:
+                        search_clean = "0"
+                    df_filtered = df_temp[
+                        (df_temp['CODIGOLINHA_clean'] == str(line_code).strip()) |
+                        (df_temp['CODIGOLINHA_clean'] == search_clean) |
+                        (df_temp['CODIGOLINHA_clean'].str.lstrip('0') == search_clean)
+                    ].copy()
                     if not df_filtered.empty:
                         dfs.append(df_filtered)
                 total_files_loaded += 1

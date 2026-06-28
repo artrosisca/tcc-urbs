@@ -61,6 +61,11 @@ def build_event_log(line_code, start_date, end_date, output_dir="data/dados_proc
             # Executar map matching + geofencing + interpolação nesta viagem
             trip_events = match_trip_events(trip_group, static_data, line_code)
             if not trip_events.empty:
+                # Filtrar viagens com altíssima taxa de interpolação (>90%)
+                interp_rate = trip_events['interpolated'].mean()
+                if interp_rate > 0.90:
+                    continue # Pula viagens com pouquíssimo sinal real
+                    
                 # Criar identificador de caso único para mineração (case:concept:name)
                 # Formato: {VEICULO}_{LINHA}_{TABELA}_{DATA}_{VIAGEM}
                 case_id = f"{vehicle_cod}_{line_code}_{trip_group['TABELA'].iloc[0]}_{day_str}_V{trip_num}"

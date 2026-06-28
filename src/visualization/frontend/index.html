@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>URBS Process Mining Dashboard</title>
+    <script>
+      window.addEventListener('error', function(e) {
+        var root = document.getElementById('root');
+        if (root) {
+          root.innerHTML = '<div style="padding: 20px; color: red; font-family: sans-serif; background: #fee2e2; border: 1px solid #fecaca; margin: 20px; border-radius: 8px; max-width: 800px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">' +
+            '<h3 style="margin-top: 0;">❌ Erro no Frontend:</h3>' +
+            '<p><strong>Mensagem:</strong> ' + e.message + '</p>' +
+            '<p><strong>Arquivo:</strong> ' + e.filename + ':' + e.lineno + ':' + e.colno + '</p>' +
+            '<p><strong>Stack Trace:</strong></p><pre style="white-space: pre-wrap; font-size: 11px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 400px;">' + (e.error && e.error.stack || 'Sem stack trace disponível') + '</pre>' +
+            '</div>';
+        }
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        var root = document.getElementById('root');
+        if (root) {
+          root.innerHTML = '<div style="padding: 20px; color: red; font-family: sans-serif; background: #fee2e2; border: 1px solid #fecaca; margin: 20px; border-radius: 8px; max-width: 800px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">' +
+            '<h3 style="margin-top: 0;">⚠️ Promessa Rejeitada Não Tratada:</h3>' +
+            '<p><strong>Razão:</strong> ' + (e.reason && e.reason.message || e.reason) + '</p>' +
+            '<p><strong>Stack Trace:</strong></p><pre style="white-space: pre-wrap; font-size: 11px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 400px;">' + (e.reason && e.reason.stack || 'Sem stack trace disponível') + '</pre>' +
+            '</div>';
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

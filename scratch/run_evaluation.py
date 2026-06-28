@@ -85,9 +85,10 @@ def main():
         print(df_comp.to_string(index=False))
         
         # Salvar em Markdown para o walkthrough
-        output_path = "dados_processados/comparativo_tcc.md"
+        output_path = "data/dados_processados/comparativo_tcc.md"
         df_comp.to_markdown(output_path, index=False)
         print(f"\nResultados salvos em markdown em: {output_path}")
+
 
 if __name__ == "__main__":
     main()

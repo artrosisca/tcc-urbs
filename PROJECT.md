@@ -10,10 +10,11 @@
 |---|------|-------|-------------|--------|
 | 1 | E2E Testing Suite (Dual Track) | Design E2E test infra and write test cases for Tiers 1-4. | None | DONE |
 | 2 | Codebase Exploration | Explore paths, emojis, theme, and python route files. | None | DONE |
-| 3 | Repository Reorganization | Move data directories to central `data/`, move script, update paths. | M2 | PLANNED |
+| 3 | Repository Reorganization | Move data directories to central `data/`, move script, update paths. | M2 | DONE |
 | 4 | Backend Route & Data Filtering | Update routes to dynamically list and filter bus lines by processed files. | M3 | PLANNED |
 | 5 | Frontend Visual Redesign | Remove emojis, apply clean light theme, update Leaflet tiles. | M3 | PLANNED |
 | 6 | Integration & Verification | Run all tests (Tiers 1-5), perform adversarial hardening. | M1, M4, M5 | PLANNED |
+
 
 ## Code Layout
 - `data/` — Central data directory (to be created)

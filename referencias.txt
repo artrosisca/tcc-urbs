@@ -1,0 +1,3 @@
+https://dadosabertos.curitiba.pr.gov.br/conjuntodado/detalhe?chave=ca40f13b-ef61-472b-810f-dd705f85fd2e
+    http://dadosabertos.c3sl.ufpr.br/curitibaurbs/
+https://geocuritiba.ippuc.org.br/server/rest/services/GeoCuritiba/URBS_Transporte_Publico/MapServer/1

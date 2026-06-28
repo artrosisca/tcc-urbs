@@ -19,6 +19,16 @@ from src.mining.conformance import analyze_conformance
 
 app = FastAPI(title="Process Mining URBS — CCO API")
 
+@app.middleware("http")
+async def add_no_cache_headers(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static") or request.url.path == "/":
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+
 # Wrapper de stdout thread-safe para redirecionar saídas do pipeline para a fila do SSE
 class SSEStdoutRedirector:
     def __init__(self, q):
@@ -729,6 +739,120 @@ def get_performance(line: str, start_date: str, end_date: str, direction: str = 
   </text>
 </svg>"""
         return Response(content=svg_data, media_type="image/svg+xml")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 6.5. Endpoint de Descoberta de Processos em JSON (/api/discovery-json)
+@app.get("/api/discovery-json")
+def get_discovery_json(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
+    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
+    if not os.path.exists(csv_path):
+        raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
+        
+    try:
+        df_log_raw = pd.read_csv(csv_path)
+        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
+        df_log_dir = df_log[df_log['gps_direction'] == direction]
+        
+        if df_log_dir.empty:
+            raise HTTPException(status_code=404, detail="Nenhum evento encontrado para este sentido.")
+            
+        log_pm4py = pm4py.format_dataframe(
+            df_log_dir,
+            case_id='case:concept:name',
+            activity_key='concept:name',
+            timestamp_key='time:timestamp'
+        )
+        
+        net, im, fm = pm4py.discover_petri_net_inductive(log_pm4py)
+        
+        places = []
+        for p in net.places:
+            places.append({"id": p.name, "label": p.name.replace("PASSAGEM_", ""), "type": "place"})
+            
+        transitions = []
+        for t in net.transitions:
+            label = t.label if t.label else t.name
+            transitions.append({"id": t.name, "label": label.replace("PASSAGEM_", ""), "type": "transition", "silent": t.label is None})
+            
+        arcs = []
+        for a in net.arcs:
+            arcs.append({
+                "source": a.source.name,
+                "target": a.target.name
+            })
+            
+        initial_marking = [p.name for p in im]
+        final_marking = [p.name for p in fm]
+        
+        return {
+            "places": places,
+            "transitions": transitions,
+            "arcs": arcs,
+            "initial_marking": initial_marking,
+            "final_marking": final_marking
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 6.6. Endpoint de Desempenho em JSON (/api/performance-json)
+@app.get("/api/performance-json")
+def get_performance_json(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
+    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
+    if not os.path.exists(csv_path):
+        raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
+        
+    try:
+        df_log_raw = pd.read_csv(csv_path)
+        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
+        df_log_dir = df_log[df_log['gps_direction'] == direction]
+        
+        if df_log_dir.empty:
+            raise HTTPException(status_code=404, detail="Nenhum evento encontrado para este sentido.")
+            
+        log_pm4py = pm4py.format_dataframe(
+            df_log_dir,
+            case_id='case:concept:name',
+            activity_key='concept:name',
+            timestamp_key='time:timestamp'
+        )
+        
+        performance_dfg, start_act, end_act = pm4py.discover_performance_dfg(log_pm4py)
+        
+        nodes_set = set()
+        links = []
+        
+        for (act_a, act_b), val in performance_dfg.items():
+            nodes_set.add(act_a)
+            nodes_set.add(act_b)
+            if isinstance(val, dict):
+                mean_duration = val.get('mean', 0.0)
+                median_duration = val.get('median', 0.0)
+                count = val.get('count', 0)
+            else:
+                mean_duration = float(val)
+                median_duration = float(val)
+                count = 0
+                
+            links.append({
+                "source": act_a,
+                "target": act_b,
+                "mean_duration": mean_duration,
+                "median_duration": median_duration,
+                "count": count
+            })
+            
+        nodes = [{"id": n, "label": n.replace("PASSAGEM_", "")} for n in nodes_set]
+        
+        start_activities = list(start_act.keys()) if isinstance(start_act, dict) else list(start_act)
+        end_activities = list(end_act.keys()) if isinstance(end_act, dict) else list(end_act)
+        
+        return {
+            "nodes": nodes,
+            "links": links,
+            "start_activities": start_activities,
+            "end_activities": end_activities
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

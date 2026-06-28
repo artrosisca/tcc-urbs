@@ -367,7 +367,8 @@ def match_trip_events(trip_df, static_data, line_code, geofence_radius=100.0, en
             'interpolated': bool(min_dist > 100.0),
             'vehicle': trip_df['COD'].iloc[0],
             'tabela': trip_df['TABELA'].iloc[0],
-            'gps_direction': gps_direction
+            'gps_direction': gps_direction,
+            'cum_dist': s_stop
         })
         
     events_df = pd.DataFrame(events)
@@ -375,13 +376,22 @@ def match_trip_events(trip_df, static_data, line_code, geofence_radius=100.0, en
         events_df = events_df.sort_values('stop_seq').copy()
         
         last_ts = None
+        last_s = None
         new_timestamps = []
         for idx, row in events_df.iterrows():
             ts = row['timestamp']
-            if last_ts is not None and ts <= last_ts:
-                ts = last_ts + pd.Timedelta(seconds=1)
+            s_val = row.get('cum_dist', 0.0)
+            
+            if last_ts is not None:
+                d_space = s_val - last_s
+                # Velocidade máxima de 80 km/h (22.2 m/s), tempo mínimo de 5.0 segundos
+                min_seconds = max(5.0, d_space / 22.2) if d_space > 0 else 5.0
+                min_ts = last_ts + pd.Timedelta(seconds=min_seconds)
+                if ts < min_ts:
+                    ts = min_ts
             new_timestamps.append(ts)
             last_ts = ts
+            last_s = s_val
         events_df['timestamp'] = new_timestamps
         
     return events_df

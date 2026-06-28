@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* Temas de cores personalizados e customizações off-white */
+@theme {
+  --color-brand-light: #f8fafc;
+  --color-brand-card: #ffffff;
+  --color-brand-border: #e2e8f0;
+  --color-brand-text: #0f172a;
+  --color-brand-text-muted: #64748b;
+  --color-brand-accent: #3b82f6;
+  --color-brand-accent-hover: #2563eb;
+  
+  --color-chart-conformance: #10b981;
+  --color-chart-deviation: #ef4444;
+  --color-chart-skip: #f59e0b;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: var(--color-brand-light);
+  color: var(--color-brand-text);
+  overflow: hidden;
+}

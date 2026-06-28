@@ -49,6 +49,17 @@ def load_static_data(date_str, line_code, c3sl_dir="data/dados_c3sl"):
     tabela_file = os.path.join(c3sl_dir, f"{formatted_date}_tabelaLinha.json.xz")
     shape_file = os.path.join(c3sl_dir, f"{formatted_date}_shapeLinha.json.xz")
     
+    # Fallback para qualquer arquivo disponível no diretório se o arquivo específico não existir
+    if not os.path.exists(pontos_file) and os.path.exists(c3sl_dir):
+        fallback_files = [f for f in os.listdir(c3sl_dir) if f.endswith("_pontosLinha.json.xz")]
+        if fallback_files:
+            fallback_date = fallback_files[0].replace("_pontosLinha.json.xz", "")
+            pontos_file = os.path.join(c3sl_dir, f"{fallback_date}_pontosLinha.json.xz")
+            tabela_file = os.path.join(c3sl_dir, f"{fallback_date}_tabelaLinha.json.xz")
+            shape_file = os.path.join(c3sl_dir, f"{fallback_date}_shapeLinha.json.xz")
+            print(f"Aviso: Arquivos estáticos para {date_str} não encontrados. Utilizando fallback: {fallback_date}")
+
+    
     # 1. Carregar Pontos de Parada
     pontos_df = pd.DataFrame()
     if os.path.exists(pontos_file):

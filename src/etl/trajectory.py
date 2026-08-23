@@ -233,7 +233,7 @@ class TrajectoryReconstructor:
         sentido_static = None
         sentidos = stops_df['SENTIDO'].dropna().unique()
 
-        if trip_sample_df is not None and not trip_sample_df.empty and len(sentidos) > 1:
+        if trip_sample_df is not None and not trip_sample_df.empty and 'LAT' in trip_sample_df.columns and len(sentidos) > 1:
             trip_start_lat = trip_sample_df['LAT'].iloc[0]
             trip_start_lon = trip_sample_df['LON'].iloc[0]
             best_sentido = None
@@ -250,10 +250,17 @@ class TrajectoryReconstructor:
                     min_dist = d
                     best_sentido = sent
             sentido_static = best_sentido
-        elif len(sentidos) == 1:
-            sentido_static = sentidos[0]
-        elif len(sentidos) > 1:
-            sentido_static = sentidos[0] if (direction == 'VOLTA' or len(sentidos) == 1) else sentidos[1]
+        elif trip_sample_df is not None and not trip_sample_df.empty and 'concept:name' in trip_sample_df.columns and len(sentidos) > 1:
+            sample_stop_name = trip_sample_df['concept:name'].iloc[0].replace('PASSAGEM_', '')
+            matching_stops = stops_df[stops_df['NOME'] == sample_stop_name]
+            if not matching_stops.empty:
+                sentido_static = matching_stops['SENTIDO'].iloc[0]
+
+        if not sentido_static:
+            if len(sentidos) == 1:
+                sentido_static = sentidos[0]
+            elif len(sentidos) > 1:
+                sentido_static = sentidos[0] if (direction == 'VOLTA' or len(sentidos) == 1) else sentidos[1]
 
         stops_filtered = stops_df[stops_df['SENTIDO'] == sentido_static].sort_values('SEQ').copy()
 

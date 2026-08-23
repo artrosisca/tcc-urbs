@@ -152,6 +152,59 @@ class FilesystemTelemetryAdapter(TelemetryStorageAdapter):
                 shape_df['LAT'] = shape_df['LAT'].apply(_parse_coord)
                 shape_df['LON'] = shape_df['LON'].apply(_parse_coord)
 
+        # 4. Fallback to static_cache or URBS Open Data API if local C3SL files are missing
+        if pontos_df.empty or shape_df.empty:
+            cache_dir = os.path.join(self.base_data_dir, "static_cache")
+            os.makedirs(cache_dir, exist_ok=True)
+            
+            # Helper to load or fetch
+            def load_or_fetch(kind: str, endpoint: str):
+                cache_file = os.path.join(cache_dir, f"{line_code}_{kind}.json")
+                if os.path.exists(cache_file):
+                    try:
+                        with open(cache_file, "r", encoding="utf-8") as f:
+                            return json.load(f)
+                    except Exception:
+                        pass
+                try:
+                    import requests
+                    url = f"https://transporteservico.urbs.curitiba.pr.gov.br/{endpoint}?linha={line_code}&c=65d35"
+                    r = requests.get(url, timeout=5)
+                    if r.status_code == 200:
+                        data = r.json()
+                        with open(cache_file, "w", encoding="utf-8") as f:
+                            json.dump(data, f)
+                        return data
+                except Exception:
+                    pass
+                return []
+
+            if pontos_df.empty:
+                pts_data = load_or_fetch("pontos", "getPontosLinha.php")
+                if pts_data:
+                    pontos_df = pd.DataFrame(pts_data)
+                    for col in ['NOME', 'SENTIDO']:
+                        if col in pontos_df.columns:
+                            pontos_df[col] = pontos_df[col].apply(_fix_encoding)
+                    pontos_df['LAT'] = pontos_df['LAT'].apply(_parse_coord)
+                    pontos_df['LON'] = pontos_df['LON'].apply(_parse_coord)
+                    if 'SEQ' in pontos_df.columns:
+                        pontos_df['SEQ'] = pd.to_numeric(pontos_df['SEQ'], errors='coerce').fillna(0).astype(int)
+
+            if tabela_df.empty:
+                tab_data = load_or_fetch("tabela", "getTabelaLinha.php")
+                if tab_data:
+                    tabela_df = pd.DataFrame(tab_data)
+                    if 'PONTO' in tabela_df.columns:
+                        tabela_df['PONTO'] = tabela_df['PONTO'].apply(_fix_encoding)
+
+            if shape_df.empty:
+                shp_data = load_or_fetch("shape", "getShapeLinha.php")
+                if shp_data:
+                    shape_df = pd.DataFrame(shp_data)
+                    shape_df['LAT'] = shape_df['LAT'].apply(_parse_coord)
+                    shape_df['LON'] = shape_df['LON'].apply(_parse_coord)
+
         return {
             'pontos': pontos_df,
             'tabela': tabela_df,

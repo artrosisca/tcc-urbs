@@ -585,8 +585,8 @@ def test_scenario_regime_b_flow():
     lines = res_lines.json()["lines"]
     assert "541" in lines
     
-    # 2. Check trips available for line 541 on 2025-12-02
-    res_trips = client.get("/api/check-trips?line=541&start_date=2025-12-02&end_date=2025-12-02")
+    # 2. Check trips available for line 541 on 2025-12-02 to 2025-12-08
+    res_trips = client.get("/api/check-trips?line=541&start_date=2025-12-02&end_date=2025-12-08")
     assert res_trips.status_code == 200
     assert res_trips.json()["exists"] is True
     

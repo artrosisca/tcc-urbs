@@ -12,10 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
 import pandas as pd
 import numpy as np
-import pm4py
-
 from src.etl.load_c3sl import load_static_data
-from src.mining.conformance import analyze_conformance
+from src.mining.engine import ProcessMiningEngine
 
 app = FastAPI(title="Process Mining URBS — CCO API")
 
@@ -599,37 +597,10 @@ def get_discovery(line: str, start_date: str, end_date: str, direction: str = "V
         if df_log_dir.empty:
             raise HTTPException(status_code=404, detail="Nenhum evento encontrado para este sentido.")
             
-        # Formata logs para pm4py
-        log_pm4py = pm4py.format_dataframe(
-            df_log_dir,
-            case_id='case:concept:name',
-            activity_key='concept:name',
-            timestamp_key='time:timestamp'
-        )
-        
-        # Descoberta de Rede de Petri
-        net, im, fm = pm4py.discover_petri_net_inductive(log_pm4py)
-        
-        # Visualização e conversão para SVG
-        from pm4py.visualization.petri_net import visualizer as pn_visualizer
-        try:
-            gviz = pn_visualizer.apply(net, im, fm)
-            svg_data = gviz.pipe(format='svg')
-        except Exception as visualizer_error:
-            # Fallback elegant SVG when Graphviz/dot is not available or fails
-            svg_data = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="100%" height="100%">
-  <rect width="100%" height="100%" fill="#121214" rx="10"/>
-  <text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" fill="#ff4b4b" font-family="'Inter', sans-serif" font-size="16px" font-weight="bold">
-    Graphviz (dot) Não Encontrado ou Falhou
-  </text>
-  <text x="50%" y="65%" dominant-baseline="middle" text-anchor="middle" fill="#cbd5e1" font-family="'Inter', sans-serif" font-size="12px">
-    Para visualizar a representação do modelo, instale o Graphviz e adicione-o ao PATH do sistema.
-  </text>
-  <text x="50%" y="80%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-family="'Inter', sans-serif" font-size="11px">
-    Dica: Execute 'choco install graphviz -y' como Administrador no terminal Windows.
-  </text>
-</svg>"""
+        svg_data = ProcessMiningEngine.discover_petri_net(df_log_dir, as_svg=True)
         return Response(content=svg_data, media_type="image/svg+xml")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -643,54 +614,10 @@ def get_conformance(line: str, start_date: str, end_date: str, direction: str = 
     try:
         df_log_raw = pd.read_csv(csv_path)
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
-        df_log['time:timestamp'] = pd.to_datetime(df_log['time:timestamp'])
         static_data = load_static_data(start_date, line)
-        
-        # Executa análise de conformidade existente
-        conformance_res = analyze_conformance(df_log, static_data['pontos'])
-        
-        if direction not in conformance_res:
-            return {"avg_fitness": 0.0, "fit_percentage": 0.0, "total_cases": 0, "skipped_stops": [], "deviant_trips": []}
-            
-        c_data = conformance_res[direction]
-        df_dev = c_data['deviations']
-        
-        # Contagem de pontos de parada pulados
-        skipped_stops_all = []
-        for stops in df_dev['skipped_stops']:
-            skipped_stops_all.extend(stops)
-            
-        skipped_counts = []
-        if skipped_stops_all:
-            series = pd.Series(skipped_stops_all).value_counts()
-            for stop_name, count in series.items():
-                skipped_counts.append({
-                    "stop_name": str(stop_name),
-                    "count": int(count)
-                })
-                
-        # Top 10 viagens com mais desvios
-        deviant_trips = []
-        if not df_dev.empty:
-            df_dev_sorted = df_dev.sort_values(by='skipped_count', ascending=False).head(10)
-            for idx, row in df_dev_sorted.iterrows():
-                deviant_trips.append({
-                    "case_id": str(row['case_id']),
-                    "vehicle": str(row['vehicle']),
-                    "tabela": str(row['tabela']),
-                    "total_visited": int(row['total_visited']),
-                    "skipped_count": int(row['skipped_count']),
-                    "skipped_stops": row['skipped_stops'],
-                    "interpolated_count": int(row['interpolated_count'])
-                })
-                
-        return {
-            "avg_fitness": float(c_data['avg_fitness']),
-            "fit_percentage": float(c_data['fit_percentage']),
-            "total_cases": int(c_data['total_cases']),
-            "skipped_stops": skipped_counts,
-            "deviant_trips": deviant_trips
-        }
+        return ProcessMiningEngine.evaluate_conformance(df_log, static_data['pontos'], direction=direction)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -709,36 +636,10 @@ def get_performance(line: str, start_date: str, end_date: str, direction: str = 
         if df_log_dir.empty:
             raise HTTPException(status_code=404, detail="Nenhum evento encontrado para este sentido.")
             
-        log_pm4py = pm4py.format_dataframe(
-            df_log_dir,
-            case_id='case:concept:name',
-            activity_key='concept:name',
-            timestamp_key='time:timestamp'
-        )
-        
-        # Descoberta de Performance DFG
-        performance_dfg, start_act, end_act = pm4py.discover_performance_dfg(log_pm4py)
-        
-        # Visualização de Performance DFG como SVG
-        from pm4py.visualization.dfg import visualizer as dfg_visualizer
-        try:
-            gviz = dfg_visualizer.apply(performance_dfg, log=log_pm4py, variant=dfg_visualizer.Variants.PERFORMANCE)
-            svg_data = gviz.pipe(format='svg')
-        except Exception as visualizer_error:
-            # Fallback elegant SVG when Graphviz/dot is not available or fails
-            svg_data = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="100%" height="100%">
-  <rect width="100%" height="100%" fill="#121214" rx="10"/>
-  <text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" fill="#ff4b4b" font-family="'Inter', sans-serif" font-size="16px" font-weight="bold">
-    Graphviz (dot) Não Encontrado ou Falhou
-  </text>
-  <text x="50%" y="65%" dominant-baseline="middle" text-anchor="middle" fill="#cbd5e1" font-family="'Inter', sans-serif" font-size="12px">
-    Para visualizar o Directly-Follows Graph, instale o Graphviz e adicione-o ao PATH do sistema.
-  </text>
-  <text x="50%" y="80%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-family="'Inter', sans-serif" font-size="11px">
-    Dica: Execute 'choco install graphviz -y' como Administrador no terminal Windows.
-  </text>
-</svg>"""
+        svg_data = ProcessMiningEngine.analyze_performance(df_log_dir, as_svg=True)
         return Response(content=svg_data, media_type="image/svg+xml")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -757,41 +658,9 @@ def get_discovery_json(line: str, start_date: str, end_date: str, direction: str
         if df_log_dir.empty:
             raise HTTPException(status_code=404, detail="Nenhum evento encontrado para este sentido.")
             
-        log_pm4py = pm4py.format_dataframe(
-            df_log_dir,
-            case_id='case:concept:name',
-            activity_key='concept:name',
-            timestamp_key='time:timestamp'
-        )
-        
-        net, im, fm = pm4py.discover_petri_net_inductive(log_pm4py)
-        
-        places = []
-        for p in net.places:
-            places.append({"id": p.name, "label": p.name.replace("PASSAGEM_", ""), "type": "place"})
-            
-        transitions = []
-        for t in net.transitions:
-            label = t.label if t.label else t.name
-            transitions.append({"id": t.name, "label": label.replace("PASSAGEM_", ""), "type": "transition", "silent": t.label is None})
-            
-        arcs = []
-        for a in net.arcs:
-            arcs.append({
-                "source": a.source.name,
-                "target": a.target.name
-            })
-            
-        initial_marking = [p.name for p in im]
-        final_marking = [p.name for p in fm]
-        
-        return {
-            "places": places,
-            "transitions": transitions,
-            "arcs": arcs,
-            "initial_marking": initial_marking,
-            "final_marking": final_marking
-        }
+        return ProcessMiningEngine.discover_petri_net(df_log_dir, as_svg=False)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -810,49 +679,9 @@ def get_performance_json(line: str, start_date: str, end_date: str, direction: s
         if df_log_dir.empty:
             raise HTTPException(status_code=404, detail="Nenhum evento encontrado para este sentido.")
             
-        log_pm4py = pm4py.format_dataframe(
-            df_log_dir,
-            case_id='case:concept:name',
-            activity_key='concept:name',
-            timestamp_key='time:timestamp'
-        )
-        
-        performance_dfg, start_act, end_act = pm4py.discover_performance_dfg(log_pm4py)
-        
-        nodes_set = set()
-        links = []
-        
-        for (act_a, act_b), val in performance_dfg.items():
-            nodes_set.add(act_a)
-            nodes_set.add(act_b)
-            if isinstance(val, dict):
-                mean_duration = val.get('mean', 0.0)
-                median_duration = val.get('median', 0.0)
-                count = val.get('count', 0)
-            else:
-                mean_duration = float(val)
-                median_duration = float(val)
-                count = 0
-                
-            links.append({
-                "source": act_a,
-                "target": act_b,
-                "mean_duration": mean_duration,
-                "median_duration": median_duration,
-                "count": count
-            })
-            
-        nodes = [{"id": n, "label": n.replace("PASSAGEM_", "")} for n in nodes_set]
-        
-        start_activities = list(start_act.keys()) if isinstance(start_act, dict) else list(start_act)
-        end_activities = list(end_act.keys()) if isinstance(end_act, dict) else list(end_act)
-        
-        return {
-            "nodes": nodes,
-            "links": links,
-            "start_activities": start_activities,
-            "end_activities": end_activities
-        }
+        return ProcessMiningEngine.analyze_performance(df_log_dir, as_svg=False)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

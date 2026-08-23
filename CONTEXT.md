@@ -26,6 +26,16 @@ _Avoid_: Path, polyline, trajectory geometry
 The strictly ordered sequence of physical boarding points assigned to a directional route.
 _Avoid_: Stop list, itinerary, stop schedule
 
+**Operational Regime (Regime Operacional)**:
+The operational schedule period of the transit network (e.g. Regime A: Out/2025 vs Regime B: Dez/2025).
+_Avoid_: Phase, schedule batch, version
+
+### Telemetry Storage & Access
+
+**Telemetry Repository (Repositório de Telemetria)**:
+The unified data access gateway that provides static schedule data, real-time GPS streams, and processed event logs across storage adapters.
+_Avoid_: Data fetcher, file scanner, folder reader
+
 ### Trajectory Reconstruction
 
 **Trajectory Reconstruction (Reconstrução de Trajetória)**:

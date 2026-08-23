@@ -14,6 +14,7 @@ import pandas as pd
 import numpy as np
 from src.etl.load_c3sl import load_static_data
 from src.etl.trajectory import TrajectoryReconstructor
+from src.etl.repository import default_telemetry_repo, FilesystemTelemetryAdapter
 from src.mining.engine import ProcessMiningEngine
 
 app = FastAPI(title="Process Mining URBS — CCO API")
@@ -59,31 +60,12 @@ class SSEStdoutRedirector:
             self.buffer = []
 
 def get_common_lines(data_dir="data/dados_em_tempo_real_2026"):
-    dir_a = os.path.join(data_dir, '2025-10-24')
-    lines_a = set()
-    if os.path.exists(dir_a):
-        for f in os.listdir(dir_a):
-            if f.endswith('.csv'):
-                try:
-                    df = pd.read_csv(os.path.join(dir_a, f), usecols=['CODIGOLINHA'])
-                    lines_a.update(df['CODIGOLINHA'].dropna().astype(str).unique())
-                except:
-                    pass
-                    
-    dir_b = os.path.join(data_dir, '2025-12-02')
-    lines_b = set()
-    if os.path.exists(dir_b):
-        for f in os.listdir(dir_b):
-            if f.endswith('.csv'):
-                try:
-                    df = pd.read_csv(os.path.join(dir_b, f), usecols=['CODIGOLINHA'])
-                    lines_b.update(df['CODIGOLINHA'].dropna().astype(str).unique())
-                except:
-                    pass
-                    
-    intersection = lines_a.intersection(lines_b)
-    intersection = {l for l in intersection if l != 'REC' and not l.startswith('X')}
-    return sorted(list(intersection))
+    if data_dir == "data/dados_em_tempo_real_2026":
+        return default_telemetry_repo.list_available_lines()
+    adapter = FilesystemTelemetryAdapter(base_data_dir=os.path.dirname(data_dir) or "data")
+    adapter.realtime_dir = data_dir
+    adapter.processed_dir = data_dir
+    return adapter.list_available_lines()
 
 # Helper to filter DataFrame by start_hour and end_hour query params
 def filter_df_by_hours(df: pd.DataFrame, start_hour: str = None, end_hour: str = None) -> pd.DataFrame:
@@ -98,7 +80,6 @@ def filter_df_by_hours(df: pd.DataFrame, start_hour: str = None, end_hour: str =
             if end_hour.startswith("24:00") or end_hour == "24:00":
                 end_hour = "23:59:59"
             
-            # Parsing robusto sem depender de strings de formato estritas
             sh_split = start_hour.split(":")
             eh_split = end_hour.split(":")
             
@@ -110,7 +91,6 @@ def filter_df_by_hours(df: pd.DataFrame, start_hour: str = None, end_hour: str =
                 int(eh_split[2]) if len(eh_split) > 2 else 0
             )
             
-            # Filtro da faixa de horário
             times = df['time:timestamp'].dt.time
             df = df[(times >= start_t) & (times <= end_t)]
         except Exception as e:
@@ -122,56 +102,7 @@ def filter_df_by_hours(df: pd.DataFrame, start_hour: str = None, end_hour: str =
 @app.get("/api/lines")
 def read_lines(regime: str = None):
     try:
-        import re
-        processed_dir = "data/dados_processados"
-        processed_lines = set()
-        if os.path.exists(processed_dir):
-            for f in os.listdir(processed_dir):
-                if f.startswith("event_log_") and f.endswith(".csv"):
-                    match = re.match(r"^event_log_(.+?)_(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})\.csv$", f)
-                    if match:
-                        line_code, start_date_str, end_date_str = match.groups()
-                        if regime == "A":
-                            if start_date_str == "2025-10-24":
-                                processed_lines.add(line_code)
-                        elif regime == "B":
-                            if start_date_str == "2025-12-02":
-                                processed_lines.add(line_code)
-                        else:
-                            processed_lines.add(line_code)
-                            
-        processed_lines = {l for l in processed_lines if l != 'REC' and not l.startswith('X')}
-        
-        if not processed_lines:
-            data_dir = "data/dados_em_tempo_real_2026"
-            if regime == "A":
-                dir_a = os.path.join(data_dir, '2025-10-24')
-                lines_a = set()
-                if os.path.exists(dir_a):
-                    for f in os.listdir(dir_a):
-                        if f.endswith('.csv'):
-                            try:
-                                df = pd.read_csv(os.path.join(dir_a, f), usecols=['CODIGOLINHA'])
-                                lines_a.update(df['CODIGOLINHA'].dropna().astype(str).unique())
-                            except:
-                                pass
-                processed_lines = {l for l in lines_a if l != 'REC' and not l.startswith('X')}
-            elif regime == "B":
-                dir_b = os.path.join(data_dir, '2025-12-02')
-                lines_b = set()
-                if os.path.exists(dir_b):
-                    for f in os.listdir(dir_b):
-                        if f.endswith('.csv'):
-                            try:
-                                df = pd.read_csv(os.path.join(dir_b, f), usecols=['CODIGOLINHA'])
-                                lines_b.update(df['CODIGOLINHA'].dropna().astype(str).unique())
-                            except:
-                                pass
-                processed_lines = {l for l in lines_b if l != 'REC' and not l.startswith('X')}
-            else:
-                processed_lines = get_common_lines()
-                
-        return {"lines": sorted(list(processed_lines))}
+        return {"lines": default_telemetry_repo.list_available_lines(regime=regime)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -219,136 +150,19 @@ def process_stream(line: str, start_date: str, end_date: str):
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 def check_raw_gps_data(line_code: str, start_date: str, end_date: str, start_hour: str = None, end_hour: str = None, data_dir="data/dados_em_tempo_real_2026") -> int:
-    try:
-        from datetime import datetime, time
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-    except Exception:
-        return 0
-
-    date_list = pd.date_range(start_dt, end_dt).strftime("%Y-%m-%d").tolist()
-    
-    start_h_int = 0
-    end_h_int = 24
-    if start_hour:
-        try:
-            start_h_int = int(start_hour.split(":")[0])
-        except:
-            pass
-    if end_hour:
-        try:
-            end_h_int = int(end_hour.split(":")[0])
-            if "23:59" in end_hour or "24:00" in end_hour:
-                end_h_int = 24
-        except:
-            pass
-            
-    total_records = 0
-    
-    for date_str in date_list:
-        day_dir = os.path.join(data_dir, date_str)
-        if not os.path.exists(day_dir):
-            day_dir_alt = os.path.join(data_dir, date_str.replace('-', '_'))
-            if os.path.exists(day_dir_alt):
-                day_dir = day_dir_alt
-            else:
-                continue
-                
-        try:
-            files = os.listdir(day_dir)
-        except:
-            continue
-            
-        for f in files:
-            if not f.endswith('.csv'):
-                continue
-                
-            try:
-                hour_part = int(f.split('_')[-1].split('-')[0])
-            except:
-                continue
-                
-            if hour_part < start_h_int or hour_part > end_h_int:
-                continue
-                
-            filepath = os.path.join(day_dir, f)
-            try:
-                df_temp = pd.read_csv(filepath, usecols=['CODIGOLINHA', 'request_timestamp'])
-                df_temp['CODIGOLINHA_clean'] = df_temp['CODIGOLINHA'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
-                search_clean = str(line_code).strip().lstrip('0')
-                if not search_clean:
-                    search_clean = "0"
-                df_line = df_temp[
-                    (df_temp['CODIGOLINHA_clean'] == str(line_code).strip()) |
-                    (df_temp['CODIGOLINHA_clean'] == search_clean) |
-                    (df_temp['CODIGOLINHA_clean'].str.lstrip('0') == search_clean)
-                ]
-                if df_line.empty:
-                    continue
-                    
-                if start_hour or end_hour:
-                    df_line = df_line.copy()
-                    df_line['ts'] = pd.to_datetime(df_line['request_timestamp'])
-                    df_times = df_line['ts'].dt.time
-                    
-                    sh_split = start_hour.split(":") if start_hour else ["00", "00"]
-                    eh_split = end_hour.split(":") if end_hour else ["23", "59", "59"]
-                    if len(eh_split) == 2 and eh_split[0] == "24":
-                        eh_split = ["23", "59", "59"]
-                    elif len(eh_split) == 2 and eh_split[0] == "23" and eh_split[1] == "59":
-                        eh_split = ["23", "59", "59"]
-                        
-                    start_t = time(int(sh_split[0]), int(sh_split[1]) if len(sh_split) > 1 else 0)
-                    end_t = time(int(eh_split[0]), int(eh_split[1]) if len(eh_split) > 1 else 0, int(eh_split[2]) if len(eh_split) > 2 else 0)
-                    
-                    df_line = df_line[(df_times >= start_t) & (df_times <= end_t)]
-                    
-                total_records += len(df_line)
-            except Exception as e:
-                pass
-                
-    return total_records
+    if data_dir == "data/dados_em_tempo_real_2026":
+        res = default_telemetry_repo.check_telemetry_status(line_code, start_date, end_date, start_hour, end_hour)
+        return res.get("count", 0) if res.get("status") == "raw" else 0
+    adapter = FilesystemTelemetryAdapter(base_data_dir=os.path.dirname(data_dir) or "data")
+    adapter.realtime_dir = data_dir
+    res = adapter.check_telemetry_status(line_code, start_date, end_date, start_hour, end_hour)
+    return res.get("count", 0) if res.get("status") == "raw" else 0
 
 # 2.1. Endpoint para verificar quantidade de viagens disponíveis antes de processar
 @app.get("/api/check-trips")
 def check_trips(line: str, start_date: str, end_date: str, start_hour: str = None, end_hour: str = None):
-    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
-    if os.path.exists(csv_path):
-        try:
-            df = pd.read_csv(csv_path, usecols=['case:concept:name', 'time:timestamp'])
-            df = filter_df_by_hours(df, start_hour, end_hour)
-            count = int(df['case:concept:name'].nunique())
-            
-            if count > 0:
-                df['time:timestamp'] = pd.to_datetime(df['time:timestamp'])
-                min_time = df['time:timestamp'].min().strftime("%H:%M:%S")
-                max_time = df['time:timestamp'].max().strftime("%H:%M:%S")
-                msg = f"Já existem dados minerados! Encontradas {count} viagens processadas das {min_time} às {max_time}."
-            else:
-                msg = "Já existem dados minerados para esse período, mas não há viagens na faixa horária selecionada."
-                
-            return {
-                "exists": count > 0,
-                "count": count,
-                "message": msg,
-                "status": "processed"
-            }
-        except Exception as e:
-            pass
-            
     try:
-        total_raw_points = check_raw_gps_data(line, start_date, end_date, start_hour, end_hour)
-        if total_raw_points > 0:
-            msg = f"Nenhum log processado ainda. Porém, foram encontrados {total_raw_points} pontos de GPS brutos para a linha {line} neste período/horário. Clique em 'Processar Mineração' para executar a mineração e ativar os mapas."
-        else:
-            msg = f"Nenhum registro bruto de GPS foi encontrado para a linha {line} no período/horário selecionados. Se você rodar a mineração, os mapas ficarão vazios."
-            
-        return {
-            "exists": total_raw_points > 0,
-            "count": total_raw_points,
-            "message": msg,
-            "status": "raw"
-        }
+        return default_telemetry_repo.check_telemetry_status(line, start_date, end_date, start_hour, end_hour)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

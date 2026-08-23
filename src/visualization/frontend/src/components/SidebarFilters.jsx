@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Settings, RefreshCw, Terminal, CheckCircle } from 'lucide-react';
+import { Play, Settings, RefreshCw, Terminal, CheckCircle, AlertCircle, Calendar } from 'lucide-react';
 
 export default function SidebarFilters({
   filters,
@@ -9,18 +9,33 @@ export default function SidebarFilters({
   isProcessing
 }) {
   const [availableLines, setAvailableLines] = useState([]);
-  
-  // Hardcoded date ranges corresponding to Regime A (Oct 24-30) and Regime B (Dec 02-08)
+  const [tripStatus, setTripStatus] = useState(null);
+
+  // Available regime presets
   const regimeConfig = {
-    'Regime A (2 min)': { start: '2025-10-24', end: '2025-10-30' },
-    'Regime B (20s)': { start: '2025-12-02', end: '2025-12-08' }
+    'Regime A (2m)': {
+      regimeParam: 'A',
+      periods: [
+        { label: 'Semana Completa (24 a 30/10/2025)', start: '2025-10-24', end: '2025-10-30' },
+        { label: '1 Dia (24/10/2025)', start: '2025-10-24', end: '2025-10-24' }
+      ]
+    },
+    'Regime B (20s)': {
+      regimeParam: 'B',
+      periods: [
+        { label: 'Semana Completa (02 a 08/12/2025)', start: '2025-12-02', end: '2025-12-08' },
+        { label: '1 Dia (02/12/2025)', start: '2025-12-02', end: '2025-12-02' }
+      ]
+    }
   };
 
+  const currentRegimeKey = Object.keys(regimeConfig).find(k => filters.regime.includes(k.split(' ')[0])) || 'Regime B (20s)';
+  const currentPeriods = regimeConfig[currentRegimeKey]?.periods || [];
+
   useEffect(() => {
-    // Fetch available bus lines for current regime
     const fetchLines = async () => {
       try {
-        const regimeParam = filters.regime.includes('Regime A') ? 'Regime A' : 'Regime B';
+        const regimeParam = currentRegimeKey.includes('20s') ? 'B' : 'A';
         const res = await fetch(`/api/lines?regime=${encodeURIComponent(regimeParam)}`);
         if (res.ok) {
           const data = await res.json();
@@ -35,15 +50,41 @@ export default function SidebarFilters({
       }
     };
     fetchLines();
-  }, [filters.regime, setFilters]);
+  }, [filters.regime]);
 
-  const handleRegimeChange = (regime) => {
-    const dates = regimeConfig[regime];
+  // Check available trips status
+  useEffect(() => {
+    const checkStatus = async () => {
+      if (!filters.line || !filters.startDate || !filters.endDate) return;
+      try {
+        const query = `line=${filters.line}&start_date=${filters.startDate}&end_date=${filters.endDate}&start_hour=${filters.startHour}&end_hour=${filters.endHour}`;
+        const res = await fetch(`/api/check-trips?${query}`);
+        if (res.ok) {
+          const data = await res.json();
+          setTripStatus(data);
+        }
+      } catch (err) {
+        console.error('Error checking trips:', err);
+      }
+    };
+    checkStatus();
+  }, [filters.line, filters.startDate, filters.endDate, filters.startHour, filters.endHour]);
+
+  const handleRegimeChange = (regimeKey) => {
+    const defaultPeriod = regimeConfig[regimeKey].periods[0];
     setFilters(prev => ({
       ...prev,
-      regime,
-      startDate: dates.start,
-      endDate: dates.end
+      regime: regimeKey,
+      startDate: defaultPeriod.start,
+      endDate: defaultPeriod.end
+    }));
+  };
+
+  const handlePeriodChange = (period) => {
+    setFilters(prev => ({
+      ...prev,
+      startDate: period.start,
+      endDate: period.end
     }));
   };
 
@@ -60,7 +101,7 @@ export default function SidebarFilters({
       </div>
 
       {/* Config Form */}
-      <div className="p-5 flex-1 overflow-y-auto space-y-6">
+      <div className="p-5 flex-1 overflow-y-auto space-y-5">
         {/* Regime Selection */}
         <div className="space-y-2">
           <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Regime de Coleta</label>
@@ -71,36 +112,42 @@ export default function SidebarFilters({
                 type="button"
                 onClick={() => handleRegimeChange(regName)}
                 className={`py-2 px-3 text-xs font-medium rounded-lg border text-center transition-all ${
-                  filters.regime === regName
+                  currentRegimeKey === regName
                     ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
                     : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                {regName.split(' ')[0]} {regName.includes('20s') ? '(20s)' : '(2m)'}
+                {regName}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Date Fields (Read Only) */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Period Preset Selection */}
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5" />
+            <span>Período de Análise</span>
+          </label>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-500">Início</label>
-            <input
-              type="text"
-              readOnly
-              value={filters.startDate}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-3 text-xs text-slate-600 outline-none"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-500">Fim</label>
-            <input
-              type="text"
-              readOnly
-              value={filters.endDate}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-3 text-xs text-slate-600 outline-none"
-            />
+            {currentPeriods.map((p, idx) => {
+              const isSelected = filters.startDate === p.start && filters.endDate === p.end;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handlePeriodChange(p)}
+                  className={`w-full py-1.5 px-2.5 text-xs rounded-lg border text-left flex items-center justify-between transition-all ${
+                    isSelected
+                      ? 'bg-blue-50 border-blue-300 text-blue-800 font-medium'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>{p.label}</span>
+                  {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -165,6 +212,33 @@ export default function SidebarFilters({
           </div>
         </div>
 
+        {/* Trips Status Card */}
+        {tripStatus && (
+          <div className={`p-3 rounded-lg border text-xs flex items-start gap-2.5 ${
+            tripStatus.status === 'processed'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : tripStatus.exists
+              ? 'bg-amber-50 border-amber-200 text-amber-800'
+              : 'bg-slate-50 border-slate-200 text-slate-600'
+          }`}>
+            {tripStatus.status === 'processed' ? (
+              <CheckCircle className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            )}
+            <div className="leading-snug">
+              <div className="font-semibold">
+                {tripStatus.status === 'processed'
+                  ? `Pronto (${tripStatus.count} viagens)`
+                  : tripStatus.exists
+                  ? `Disponível para minerar (${tripStatus.count} pts)`
+                  : 'Sem dados para este filtro'}
+              </div>
+              <div className="text-[11px] opacity-80 mt-0.5">{tripStatus.message}</div>
+            </div>
+          </div>
+        )}
+
         {/* Run Button */}
         <button
           type="button"
@@ -181,12 +255,12 @@ export default function SidebarFilters({
           ) : (
             <Play className="h-3.5 w-3.5 fill-current" />
           )}
-          <span>{isProcessing ? 'Minerando Processos...' : 'Executar Mineração'}</span>
+          <span>{isProcessing ? 'Minerando Processos...' : 'Executar / Reprocessar Mineração'}</span>
         </button>
       </div>
 
       {/* SSE Log Box */}
-      <div className="p-4 bg-slate-950 border-t border-slate-800 h-56 flex flex-col font-mono text-[10px] text-slate-300">
+      <div className="p-4 bg-slate-950 border-t border-slate-800 h-44 flex flex-col font-mono text-[10px] text-slate-300">
         <div className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-slate-500 mb-2 tracking-wider">
           <Terminal className="h-3 w-3" />
           <span>Console de Execução</span>
@@ -199,7 +273,7 @@ export default function SidebarFilters({
               <div
                 key={idx}
                 className={
-                  log.includes('Concluído') || log.includes('salvo')
+                  log.includes('Concluído') || log.includes('salvo') || log.includes('sucesso')
                     ? 'text-emerald-400'
                     : log.includes('Erro')
                     ? 'text-rose-400'

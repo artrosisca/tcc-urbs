@@ -274,7 +274,7 @@ class ProcessMiningEngine:
                 "total_cases": int(total_cases),
                 "skipped_stops": skipped_counts,
                 "deviant_trips": deviant_trips,
-                "deviations": df_dev
+                "deviations": df_dev.to_dict('records') if isinstance(df_dev, pd.DataFrame) else []
             }
             results[dir_name] = dir_result
 

@@ -2,3 +2,6 @@ data/dados_em_tempo_real_2026/
 data/dados_c3sl/
 data/dados_processados/
 referencias/
+__pycache__/
+*.pyc
+.pytest_cache/

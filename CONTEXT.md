@@ -18,6 +18,24 @@ _Avoid_: Run, journey, session
 A timestamped occurrence of a bus visiting or traversing the geofence/vicinity of a planned physical stop.
 _Avoid_: Check-in, hit, waypoint event
 
+**Shape (Traçado)**:
+The ordered sequence of geographic coordinates defining the physical road geometry of a bus route.
+_Avoid_: Path, polyline, trajectory geometry
+
+**Stop Sequence (Sequência de Paradas)**:
+The strictly ordered sequence of physical boarding points assigned to a directional route.
+_Avoid_: Stop list, itinerary, stop schedule
+
+### Trajectory Reconstruction
+
+**Trajectory Reconstruction (Reconstrução de Trajetória)**:
+The pipeline that cleans raw telemetry, maps coordinates to physical shapes via HMM Viterbi projection, and estimates stop arrival times with monotonic PCHIP splines.
+_Avoid_: Geofencing, map-matching script, data processor
+
+**Map-Matching**:
+The algorithmic projection of noisy GPS coordinates onto the discrete sequential nodes of the physical route shape.
+_Avoid_: Snap-to-road, coordinate alignment
+
 ### Process Mining & Analytics
 
 **Trace Fitness**:

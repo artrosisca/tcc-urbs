@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 import pandas as pd
 import numpy as np
 from src.etl.load_c3sl import load_static_data
+from src.etl.trajectory import TrajectoryReconstructor
 from src.mining.engine import ProcessMiningEngine
 
 app = FastAPI(title="Process Mining URBS — CCO API")
@@ -364,208 +365,49 @@ def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VO
         df_log_raw = pd.read_csv(csv_path)
         static_data = load_static_data(start_date, line)
         
-        stops_df = static_data['pontos']
-        shape_df = static_data['shape']
-        
+        stops_df = static_data.get('pontos', pd.DataFrame())
         if stops_df.empty:
             return {"stops": [], "shape": [], "segments": [], "replay_trips": [], "metrics": {}}
             
-        # Filtrar o DataFrame consolidado com base na faixa horária e sentido
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
         df_log_dir = df_log[df_log['gps_direction'] == direction]
         
-        # Resolução do Sentido Estático Planejado
-        sentido_static = None
-        if not df_log_dir.empty:
-            sample_stop_name = df_log_dir['concept:name'].iloc[0].replace('PASSAGEM_', '')
-            matching_stops = stops_df[stops_df['NOME'] == sample_stop_name]
-            if not matching_stops.empty:
-                sentido_static = matching_stops['SENTIDO'].iloc[0]
-                
-        if not sentido_static and not stops_df.empty:
-            sentidos = stops_df['SENTIDO'].unique()
-            if len(sentidos) > 0:
-                if direction == 'VOLTA' or len(sentidos) == 1:
-                    sentido_static = sentidos[0]
-                else:
-                    sentido_static = sentidos[1]
-                    
-        stops_filtered = stops_df[stops_df['SENTIDO'] == sentido_static].sort_values('SEQ').copy()
+        sentido_static, stops_filtered, shape_filtered = TrajectoryReconstructor.resolve_route_geometry(
+            static_data,
+            direction=direction,
+            trip_sample_df=df_log_dir
+        )
         
         shape_coords = []
-        shape_filtered = pd.DataFrame()
-        if not shape_df.empty and 'SHP' in shape_df.columns:
-            shps = shape_df['SHP'].unique()
-            if len(shps) == 1:
-                shape_filtered = shape_df[shape_df['SHP'] == shps[0]].copy()
-            elif len(shps) > 1 and sentido_static:
-                stops_for_sentido = stops_df[stops_df['SENTIDO'] == sentido_static]
-                if not stops_for_sentido.empty:
-                    stop_lats = stops_for_sentido['LAT'].values
-                    stop_lons = stops_for_sentido['LON'].values
-                    
-                    best_shp = None
-                    min_avg_dist = float('inf')
-                    
-                    for shp in shps:
-                        shp_pts = shape_df[shape_df['SHP'] == shp]
-                        if shp_pts.empty:
-                            continue
-                        shp_lats = shp_pts['LAT'].values
-                        shp_lons = shp_pts['LON'].values
-                        
-                        from src.etl.clean_data import haversine_vectorized
-                        dists_list = []
-                        for s_lat, s_lon in zip(stop_lats, stop_lons):
-                            dists = haversine_vectorized(
-                                np.full_like(shp_lats, s_lat), np.full_like(shp_lons, s_lon),
-                                shp_lats, shp_lons
-                            )
-                            dists_list.append(dists.min())
-                        avg_dist = np.mean(dists_list)
-                        if avg_dist < min_avg_dist:
-                            min_avg_dist = avg_dist
-                            best_shp = shp
-                    if best_shp:
-                        shape_filtered = shape_df[shape_df['SHP'] == best_shp].copy()
-                        
-            if not shape_filtered.empty:
-                shape_coords = list(zip(shape_filtered['LAT'].tolist(), shape_filtered['LON'].tolist()))
-                
-        # Projeta paradas no shape
-        if not shape_filtered.empty and not stops_filtered.empty:
-            from src.etl.geofencing import map_gps_to_shape
-            shape_lats = shape_filtered['LAT'].values
-            shape_lons = shape_filtered['LON'].values
-            stop_shape_indices = map_gps_to_shape(stops_filtered['LAT'].values, stops_filtered['LON'].values, shape_lats, shape_lons)
-            stop_shape_indices = np.maximum.accumulate(stop_shape_indices)
-            stops_filtered['shape_idx'] = stop_shape_indices
-
-        # ALTERNATIVA A: Calcular velocidades agregadas de segmentos (Trecho i -> Trecho i+1)
-        segments = []
-        if not df_log_dir.empty and not shape_filtered.empty and not stops_filtered.empty:
-            stops_records = stops_filtered.to_dict('records')
+        if not shape_filtered.empty:
+            shape_coords = list(zip(shape_filtered['LAT'].tolist(), shape_filtered['LON'].tolist()))
             
-            # Para cada trecho entre as paradas consecutivas, calcular velocidade média da frota
-            for i in range(len(stops_records) - 1):
-                st1 = stops_records[i]
-                st2 = stops_records[i+1]
-                
-                idx1 = st1['shape_idx']
-                idx2 = st2['shape_idx']
-                if idx1 > idx2:
-                    idx1, idx2 = idx2, idx1
-                    
-                seg_df = shape_filtered.iloc[idx1 : idx2 + 1]
-                seg_coords = list(zip(seg_df['LAT'].tolist(), seg_df['LON'].tolist()))
-                
-                # Calcular distância do segmento
-                from src.etl.clean_data import haversine_vectorized
-                dist = 0.0
-                if len(seg_coords) > 1:
-                    lats = seg_df['LAT'].values
-                    lons = seg_df['LON'].values
-                    dists = haversine_vectorized(lats[:-1], lons[:-1], lats[1:], lons[1:])
-                    dist = float(dists.sum())
-                
-                # Coletar passagens de ônibus nesse trecho
-                speeds_list = []
-                stop_name_1 = f"PASSAGEM_{st1['NOME']}"
-                stop_name_2 = f"PASSAGEM_{st2['NOME']}"
-                
-                # Encontrar casos que passaram por ambos os pontos consecutivamente
-                cases_passed = df_log_dir[df_log_dir['concept:name'].isin([stop_name_1, stop_name_2])]
-                if not cases_passed.empty:
-                    grouped = cases_passed.groupby('case:concept:name')
-                    for case_id, group in grouped:
-                        if len(group) == 2:
-                            # Garantir que o seq da parada está ordenado
-                            g_sorted = group.sort_values('stop_seq')
-                            t1 = pd.to_datetime(g_sorted['time:timestamp'].iloc[0])
-                            t2 = pd.to_datetime(g_sorted['time:timestamp'].iloc[1])
-                            duration_sec = (t2 - t1).total_seconds()
-                            if duration_sec > 0:
-                                speeds_list.append((dist / duration_sec) * 3.6)
-                
-                # Velocidade agregada (mediana das velocidades ou 25 km/h por padrão se não houver dados)
-                avg_speed = float(np.median(speeds_list)) if speeds_list else 25.0
-                
-                # Cor conforme congestionamento
-                if avg_speed < 12.0:
-                    color = "#ff4b4b"  # Vermelho (Lento/Congestionado)
-                elif avg_speed < 20.0:
-                    color = "#f59e0b"  # Laranja (Atenção/Moderado)
-                else:
-                    color = "#ffffff"  # Branco (Livre/Normal)
-                    
-                segments.append({
-                    "from_stop": st1['NOME'],
-                    "to_stop": st2['NOME'],
-                    "coords": seg_coords,
-                    "speed": avg_speed,
-                    "color": color
-                })
-
-        # ALTERNATIVA B: Replay Multiveículos (Estrutura de dados das viagens ativas para o JS interpolar)
-        replay_trips = []
-        if not df_log_dir.empty and not shape_filtered.empty and not stops_filtered.empty:
-            cases_ids = df_log_dir['case:concept:name'].unique()
-            for cid in cases_ids:
-                c_events = df_log_dir[df_log_dir['case:concept:name'] == cid].sort_values('stop_seq')
-                
-                # Juntar coordenadas geográficas das paradas
-                c_merged = pd.merge(
-                    c_events[['stop_seq', 'time:timestamp']],
-                    stops_filtered[['SEQ', 'NOME', 'LAT', 'LON', 'shape_idx']],
-                    left_on='stop_seq',
-                    right_on='SEQ',
-                    how='inner'
-                ).sort_values('stop_seq')
-                
-                path_pts = []
-                for idx, row in c_merged.iterrows():
-                    path_pts.append({
-                        "time": row['time:timestamp'].isoformat() if hasattr(row['time:timestamp'], "isoformat") else str(row['time:timestamp']),
-                        "lat": float(row['LAT']),
-                        "lon": float(row['LON']),
-                        "stop_name": str(row['NOME'])
-                    })
-                
-                if len(path_pts) > 1:
-                    replay_trips.append({
-                        "case_id": cid,
-                        "vehicle": str(c_events['org:resource'].iloc[0]),
-                        "path": path_pts
-                    })
-
+        segments = TrajectoryReconstructor.calculate_segment_speeds(df_log_dir, shape_filtered, stops_filtered)
+        replay_trips = TrajectoryReconstructor.build_replay_trips(df_log_dir, stops_filtered)
+        
         stops_list = []
         for idx, stop in stops_filtered.iterrows():
             stop_name_log = f"PASSAGEM_{stop['NOME']}"
             df_stop_events = df_log_dir[df_log_dir['concept:name'] == stop_name_log]
             passages = len(df_stop_events)
-            
-            # Identifica se houve interpolação
             is_interpolated = False
-            if not df_log_dir.empty:
-                rep_event = df_log_dir[df_log_dir['concept:name'] == stop_name_log]
-                if not rep_event.empty:
-                    is_interpolated = bool(rep_event['interpolated'].iloc[0])
-            
+            if not df_stop_events.empty and 'interpolated' in df_stop_events.columns:
+                is_interpolated = bool(df_stop_events['interpolated'].iloc[0])
+                
             stops_list.append({
                 "seq": int(stop['SEQ']),
                 "nome": str(stop['NOME']),
-                "num": str(stop['NUM']),
+                "num": str(stop.get('NUM', stop['SEQ'])),
                 "lat": float(stop['LAT']),
                 "lon": float(stop['LON']),
                 "passages": passages,
                 "interpolated": is_interpolated
             })
             
-        # Calcular KPIs Reais Gerais baseados na faixa filtrada
         total_viagens = int(df_log_dir['case:concept:name'].nunique())
         total_eventos = int(len(df_log_dir))
-        veiculos_ativos = int(df_log_dir['org:resource'].nunique())
-        taxa_interpolacao = float((df_log_dir['interpolated'].sum() / len(df_log_dir)) * 100) if len(df_log_dir) > 0 else 0.0
+        veiculos_ativos = int(df_log_dir['org:resource'].nunique()) if 'org:resource' in df_log_dir.columns else 0
+        taxa_interpolacao = float((df_log_dir['interpolated'].sum() / len(df_log_dir)) * 100) if (len(df_log_dir) > 0 and 'interpolated' in df_log_dir.columns) else 0.0
         
         return {
             "stops": stops_list,
@@ -579,6 +421,8 @@ def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VO
                 "taxa_interpolacao": taxa_interpolacao
             }
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

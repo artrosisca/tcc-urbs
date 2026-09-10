@@ -9,22 +9,37 @@ export default function SidebarFilters({
   isProcessing
 }) {
   const [availableLines, setAvailableLines] = useState([]);
+  const [minedLines, setMinedLines] = useState([]);
+  const [rawLines, setRawLines] = useState([]);
   const [tripStatus, setTripStatus] = useState(null);
+  const [showCustomDates, setShowCustomDates] = useState(false);
 
-  // Available regime presets
+  // Available regime presets with full week and individual days
   const regimeConfig = {
     'Regime A (2m)': {
       regimeParam: 'A',
-      periods: [
-        { label: 'Semana Completa (24 a 30/10/2025)', start: '2025-10-24', end: '2025-10-30' },
-        { label: '1 Dia (24/10/2025)', start: '2025-10-24', end: '2025-10-24' }
+      week: { label: 'Semana Completa (24 a 30/10/2025)', start: '2025-10-24', end: '2025-10-30' },
+      days: [
+        { label: '24/10/2025 (Sex)', start: '2025-10-24', end: '2025-10-24' },
+        { label: '25/10/2025 (Sáb)', start: '2025-10-25', end: '2025-10-25' },
+        { label: '26/10/2025 (Dom)', start: '2025-10-26', end: '2025-10-26' },
+        { label: '27/10/2025 (Seg)', start: '2025-10-27', end: '2025-10-27' },
+        { label: '28/10/2025 (Ter)', start: '2025-10-28', end: '2025-10-28' },
+        { label: '29/10/2025 (Qua)', start: '2025-10-29', end: '2025-10-29' },
+        { label: '30/10/2025 (Qui)', start: '2025-10-30', end: '2025-10-30' }
       ]
     },
     'Regime B (20s)': {
       regimeParam: 'B',
-      periods: [
-        { label: 'Semana Completa (02 a 08/12/2025)', start: '2025-12-02', end: '2025-12-08' },
-        { label: '1 Dia (02/12/2025)', start: '2025-12-02', end: '2025-12-02' }
+      week: { label: 'Semana Completa (02 a 08/12/2025)', start: '2025-12-02', end: '2025-12-08' },
+      days: [
+        { label: '02/12/2025 (Ter)', start: '2025-12-02', end: '2025-12-02' },
+        { label: '03/12/2025 (Qua)', start: '2025-12-03', end: '2025-12-03' },
+        { label: '04/12/2025 (Qui)', start: '2025-12-04', end: '2025-12-04' },
+        { label: '05/12/2025 (Sex)', start: '2025-12-05', end: '2025-12-05' },
+        { label: '06/12/2025 (Sáb)', start: '2025-12-06', end: '2025-12-06' },
+        { label: '07/12/2025 (Dom)', start: '2025-12-07', end: '2025-12-07' },
+        { label: '08/12/2025 (Seg)', start: '2025-12-08', end: '2025-12-08' }
       ]
     }
   };
@@ -32,19 +47,23 @@ export default function SidebarFilters({
   const currentRegimeKey = regimeConfig[filters.regime]
     ? filters.regime
     : (filters.regime?.includes('20s') || filters.regime?.includes('B') ? 'Regime B (20s)' : 'Regime A (2m)');
-  const currentPeriods = regimeConfig[currentRegimeKey]?.periods || [];
+  const currentRegime = regimeConfig[currentRegimeKey];
 
   useEffect(() => {
     const fetchLines = async () => {
       try {
         const regimeParam = currentRegimeKey.includes('20s') ? 'B' : 'A';
-        const res = await fetch(`/api/lines?regime=${encodeURIComponent(regimeParam)}`);
+        const res = await fetch(`/api/lines?regime=${encodeURIComponent(regimeParam)}&include_raw=true`);
         if (res.ok) {
           const data = await res.json();
           const linesArray = data.lines || [];
+          const mined = data.mined_lines || [];
+          const raw = data.raw_lines || [];
           setAvailableLines(linesArray);
+          setMinedLines(mined);
+          setRawLines(raw);
           if (linesArray.length > 0 && !linesArray.includes(filters.line)) {
-            setFilters(prev => ({ ...prev, line: linesArray[0] }));
+            setFilters(prev => ({ ...prev, line: mined[0] || linesArray[0] }));
           }
         }
       } catch (err) {
@@ -80,7 +99,7 @@ export default function SidebarFilters({
   }, [filters.line, filters.startDate, filters.endDate, filters.startHour, filters.endHour]);
 
   const handleRegimeChange = (regimeKey) => {
-    const defaultPeriod = regimeConfig[regimeKey].periods[0];
+    const defaultPeriod = regimeConfig[regimeKey].week;
     setFilters(prev => ({
       ...prev,
       regime: regimeKey,
@@ -89,13 +108,16 @@ export default function SidebarFilters({
     }));
   };
 
-  const handlePeriodChange = (period) => {
+  const handlePeriodChange = (start, end) => {
     setFilters(prev => ({
       ...prev,
-      startDate: period.start,
-      endDate: period.end
+      startDate: start,
+      endDate: end
     }));
   };
+
+  const isWeekSelected = filters.startDate === currentRegime.week.start && filters.endDate === currentRegime.week.end;
+  const isSingleDaySelected = filters.startDate === filters.endDate;
 
   return (
     <aside className="w-80 bg-white border-r border-slate-200 flex flex-col h-full flex-shrink-0">
@@ -134,45 +156,120 @@ export default function SidebarFilters({
 
         {/* Period Preset Selection */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5" />
-            <span>Período de Análise</span>
-          </label>
-          <div className="space-y-1.5">
-            {currentPeriods.map((p, idx) => {
-              const isSelected = filters.startDate === p.start && filters.endDate === p.end;
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handlePeriodChange(p)}
-                  className={`w-full py-1.5 px-2.5 text-xs rounded-lg border text-left flex items-center justify-between transition-all ${
-                    isSelected
-                      ? 'bg-blue-50 border-blue-300 text-blue-800 font-medium'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Período de Análise</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowCustomDates(prev => !prev)}
+              className="text-[10px] text-blue-600 hover:text-blue-800 font-medium"
+            >
+              {showCustomDates ? 'Predefinições' : 'Datas Livres'}
+            </button>
+          </div>
+
+          {!showCustomDates ? (
+            <div className="space-y-2">
+              {/* Full Week Button */}
+              <button
+                type="button"
+                onClick={() => handlePeriodChange(currentRegime.week.start, currentRegime.week.end)}
+                className={`w-full py-2 px-3 text-xs rounded-lg border text-left flex items-center justify-between transition-all ${
+                  isWeekSelected
+                    ? 'bg-blue-50 border-blue-300 text-blue-800 font-semibold shadow-xs'
+                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <span>{currentRegime.week.label}</span>
+                {isWeekSelected && <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>}
+              </button>
+
+              {/* Day Selector Dropdown */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+                  Auditoria Diária (Dia Específico)
+                </span>
+                <select
+                  value={isSingleDaySelected ? filters.startDate : ''}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handlePeriodChange(e.target.value, e.target.value);
+                    }
+                  }}
+                  className={`w-full bg-white border rounded-lg py-1.5 px-2.5 text-xs outline-none cursor-pointer ${
+                    isSingleDaySelected
+                      ? 'border-blue-300 text-blue-800 font-medium bg-blue-50/50'
+                      : 'border-slate-200 text-slate-600'
                   }`}
                 >
-                  <span>{p.label}</span>
-                  {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>}
-                </button>
-              );
-            })}
-          </div>
+                  <option value="">Selecione um dia da semana...</option>
+                  {currentRegime.days.map((d) => (
+                    <option key={d.start} value={d.start}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-500">Início</label>
+                  <input
+                    type="date"
+                    value={filters.startDate}
+                    onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded py-1 px-2 text-xs text-slate-700"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-500">Fim</label>
+                  <input
+                    type="date"
+                    value={filters.endDate}
+                    onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded py-1 px-2 text-xs text-slate-700"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Bus Line Selector */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Linha de Ônibus</label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Linha de Ônibus</label>
+            <span className="text-[10px] font-bold text-slate-400">
+              {rawLines.length + minedLines.length} linhas disponíveis
+            </span>
+          </div>
           <select
             value={filters.line}
             onChange={(e) => setFilters(prev => ({ ...prev, line: e.target.value }))}
             className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs text-slate-700 font-medium focus:border-slate-400 outline-none cursor-pointer"
           >
-            {availableLines.map(line => (
-              <option key={line} value={line}>
-                Linha {line}
-              </option>
-            ))}
+            {minedLines.length > 0 && (
+              <optgroup label={`⭐ Linhas Mineradas / Prontas (${minedLines.length})`}>
+                {minedLines.map(line => (
+                  <option key={line} value={line}>
+                    Linha {line} (Log de Eventos Pronto)
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {rawLines.length > 0 && (
+              <optgroup label={`📡 Dados Brutos de GPS (${rawLines.length} linhas)`}>
+                {rawLines.map(line => (
+                  <option key={line} value={line}>
+                    Linha {line} (Bruto — requer mineração)
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
 

@@ -69,6 +69,11 @@ class TelemetryStorageAdapter(ABC):
         pass
 
     @abstractmethod
+    def list_raw_lines(self, regime: Optional[str] = None) -> List[str]:
+        """List all line codes detected in raw GPS telemetry."""
+        pass
+
+    @abstractmethod
     def check_telemetry_status(
         self,
         line_code: str,
@@ -318,6 +323,38 @@ class FilesystemTelemetryAdapter(TelemetryStorageAdapter):
             lines_b = extract_lines_from_dir(os.path.join(self.realtime_dir, '2025-12-02'))
             return sorted(list(lines_a.intersection(lines_b)))
 
+    def list_raw_lines(self, regime: Optional[str] = None) -> List[str]:
+        if not hasattr(self, '_raw_lines_cache'):
+            self._raw_lines_cache = {}
+        if regime in self._raw_lines_cache:
+            return self._raw_lines_cache[regime]
+
+        def extract_lines_from_dir(day_dir: str) -> set:
+            lines = set()
+            if os.path.exists(day_dir):
+                for f in sorted(os.listdir(day_dir))[:25]:
+                    if f.endswith('.csv'):
+                        try:
+                            df = pd.read_csv(os.path.join(day_dir, f), usecols=['CODIGOLINHA'])
+                            lines.update(df['CODIGOLINHA'].dropna().astype(str).str.replace(r'\.0$', '', regex=True).unique())
+                        except Exception:
+                            pass
+            return {l.strip() for l in lines if l and l != 'REC' and not l.startswith('X') and len(l) <= 4}
+
+        day_a = os.path.join(self.realtime_dir, '2025-10-24')
+        day_b = os.path.join(self.realtime_dir, '2025-12-02')
+        if regime == "A":
+            res = sorted(list(extract_lines_from_dir(day_a)))
+        elif regime == "B":
+            res = sorted(list(extract_lines_from_dir(day_b))) or sorted(list(extract_lines_from_dir(day_a)))
+        else:
+            lines_a = extract_lines_from_dir(day_a)
+            lines_b = extract_lines_from_dir(day_b)
+            res = sorted(list(lines_a | lines_b))
+        
+        self._raw_lines_cache[regime] = res
+        return res
+
     def check_telemetry_status(
         self,
         line_code: str,
@@ -444,6 +481,9 @@ class InMemoryTelemetryAdapter(TelemetryStorageAdapter):
             return sorted(self.lines_by_regime[regime])
         return sorted(self.lines_by_regime.get("ALL", ["541"]))
 
+    def list_raw_lines(self, regime: Optional[str] = None) -> List[str]:
+        return sorted(self.lines_by_regime.get(regime or "ALL", ["010", "541", "542"]))
+
     def check_telemetry_status(
         self,
         line_code: str,
@@ -479,6 +519,9 @@ class TelemetryRepository:
 
     def list_available_lines(self, regime: Optional[str] = None) -> List[str]:
         return self.adapter.list_available_lines(regime)
+
+    def list_raw_lines(self, regime: Optional[str] = None) -> List[str]:
+        return self.adapter.list_raw_lines(regime)
 
     def check_telemetry_status(
         self,

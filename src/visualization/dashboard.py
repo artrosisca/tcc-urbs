@@ -104,9 +104,19 @@ def filter_df_by_hours(df: pd.DataFrame, start_hour: str = None, end_hour: str =
 
 # 1. Rota de Linhas em Comum
 @app.get("/api/lines")
-def read_lines(regime: str = None):
+def read_lines(regime: str = None, include_raw: bool = False):
     try:
-        return {"lines": default_telemetry_repo.list_available_lines(regime=regime)}
+        mined_lines = default_telemetry_repo.list_available_lines(regime=regime)
+        raw_lines = default_telemetry_repo.list_raw_lines(regime=regime)
+        other_raw = [l for l in raw_lines if l not in mined_lines]
+        lines_output = list(mined_lines) + other_raw if include_raw else mined_lines
+        return {
+            "mined_lines": mined_lines,
+            "raw_lines": other_raw,
+            "lines": lines_output,
+            "total_mined": len(mined_lines),
+            "total_raw": len(raw_lines)
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -56,20 +56,27 @@ export default function SidebarFilters({
 
   // Check available trips status
   useEffect(() => {
+    let isMounted = true;
+    setTripStatus(null);
     const checkStatus = async () => {
       if (!filters.line || !filters.startDate || !filters.endDate) return;
       try {
         const query = `line=${filters.line}&start_date=${filters.startDate}&end_date=${filters.endDate}&start_hour=${filters.startHour}&end_hour=${filters.endHour}`;
         const res = await fetch(`/api/check-trips?${query}`);
-        if (res.ok) {
+        if (res.ok && isMounted) {
           const data = await res.json();
           setTripStatus(data);
         }
       } catch (err) {
-        console.error('Error checking trips:', err);
+        if (isMounted) {
+          console.error('Error checking trips:', err);
+        }
       }
     };
     checkStatus();
+    return () => {
+      isMounted = false;
+    };
   }, [filters.line, filters.startDate, filters.endDate, filters.startHour, filters.endHour]);
 
   const handleRegimeChange = (regimeKey) => {

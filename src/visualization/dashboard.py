@@ -140,6 +140,7 @@ def process_stream(line: str, start_date: str, end_date: str):
                     q.put("__FAILURE__")
             else:
                 print("Pipeline finalizado: Log de Eventos consolidado e salvo com sucesso!")
+                _fleet_audit_cache.clear()
                 q.put("__SUCCESS__")
         except Exception as e:
             print(f"ERRO CRÍTICO no processamento: {str(e)}")
@@ -379,8 +380,13 @@ def get_performance_json(line: str, start_date: str, end_date: str, direction: s
         raise HTTPException(status_code=500, detail=str(e))
 
 # 6.7. Endpoint de Auditoria Diária da Frota (Visão Executiva CCO)
+_fleet_audit_cache: Dict[str, Dict[str, Any]] = {}
+
 @app.get("/api/fleet-audit")
 def get_fleet_audit(regime: str = "B"):
+    if regime in _fleet_audit_cache:
+        return _fleet_audit_cache[regime]
+
     lines = default_telemetry_repo.list_available_lines(regime=regime)
     start_date = "2025-10-24" if regime == "A" else "2025-12-02"
     end_date = "2025-10-30" if regime == "A" else "2025-12-08"
@@ -406,16 +412,29 @@ def get_fleet_audit(regime: str = "B"):
             conf = ProcessMiningEngine.evaluate_conformance(df, stops_df, direction=chosen_dir)
             fit_pct = float(conf.get("fit_percentage", 0.0))
             avg_fit = float(conf.get("avg_fitness", 0.0))
+            adherence_pct = round(avg_fit * 100, 1)
             skipped_stops_count = sum(s.get("count", 0) for s in conf.get("skipped_stops", []))
             
             perf = ProcessMiningEngine.analyze_performance(df_dir, as_svg=False)
             bottlenecks_count = sum(1 for link in perf.get("links", []) if link.get("avg_duration_sec", 0) > 120)
             
-            status = "CONFORME"
-            if fit_pct < 90 or bottlenecks_count > 5:
-                status = "CRÍTICO"
-            elif fit_pct < 97 or bottlenecks_count > 2 or skipped_stops_count > 20:
-                status = "ATENÇÃO"
+            # Context-aware operational status:
+            # In Regime A (2m intervals), telemetry jumps cause discrete token omissions,
+            # so adherence_pct reflects physical route following.
+            if regime == "A":
+                if adherence_pct >= 50 and bottlenecks_count <= 5:
+                    status = "CONFORME"
+                elif adherence_pct >= 35:
+                    status = "ATENÇÃO"
+                else:
+                    status = "CRÍTICO"
+            else:
+                if fit_pct >= 90 and bottlenecks_count <= 5:
+                    status = "CONFORME"
+                elif fit_pct >= 70:
+                    status = "ATENÇÃO"
+                else:
+                    status = "CRÍTICO"
                 
             fleet_lines.append({
                 "line": l,
@@ -423,6 +442,7 @@ def get_fleet_audit(regime: str = "B"):
                 "total_cases": total_cases,
                 "fit_percentage": fit_pct,
                 "avg_fitness": avg_fit,
+                "adherence_pct": adherence_pct,
                 "skipped_stops_count": skipped_stops_count,
                 "bottlenecks_count": bottlenecks_count,
                 "status": status,
@@ -432,20 +452,24 @@ def get_fleet_audit(regime: str = "B"):
             pass
             
     total_trips = sum(f["total_cases"] for f in fleet_lines)
+    avg_fleet_adherence = float(np.mean([f["adherence_pct"] for f in fleet_lines])) if fleet_lines else 0.0
     avg_global_fit = float(np.mean([f["fit_percentage"] for f in fleet_lines])) if fleet_lines else 0.0
     total_skipped = sum(f["skipped_stops_count"] for f in fleet_lines)
     
-    return {
+    result = {
         "regime": regime,
         "date_range": f"{start_date} a {end_date}",
         "summary": {
             "total_lines": len(fleet_lines),
             "total_trips_audited": total_trips,
+            "avg_fleet_adherence": round(avg_fleet_adherence, 1),
             "avg_fleet_conformance": round(avg_global_fit, 1),
             "total_skipped_stops": total_skipped
         },
         "lines": fleet_lines
     }
+    _fleet_audit_cache[regime] = result
+    return result
 
 # 7. Configuração e montagem dos arquivos estáticos do front-end
 static_dir = os.path.join(os.path.dirname(__file__), "static")

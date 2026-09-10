@@ -130,8 +130,14 @@ def process_stream(line: str, start_date: str, end_date: str):
             _ = load_static_data(start_date, line)
             
             if df_log.empty:
-                print("ERRO: Nenhum registro de GPS válido localizado para estes filtros.")
-                q.put("__FAILURE__")
+                csv_path = find_event_log_file(line, start_date, end_date)
+                if csv_path and os.path.exists(csv_path):
+                    print(f"Log de Eventos consolidado pré-existente localizado: {os.path.basename(csv_path)}")
+                    print("Os dados minerados já estão prontos para análise no CCO!")
+                    q.put("__SUCCESS__")
+                else:
+                    print("ERRO: Nenhum registro de GPS bruto ou log processado encontrado para estes filtros.")
+                    q.put("__FAILURE__")
             else:
                 print("Pipeline finalizado: Log de Eventos consolidado e salvo com sucesso!")
                 q.put("__SUCCESS__")

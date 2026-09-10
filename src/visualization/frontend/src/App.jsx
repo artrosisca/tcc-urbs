@@ -37,38 +37,33 @@ export default function App() {
     const query = `line=${line}&start_date=${startDate}&end_date=${endDate}&direction=${direction}&start_hour=${startHour}&end_hour=${endHour}`;
 
     try {
-      // 1. Fetch geospatial map data
-      const mapRes = await fetch(`/api/map-data?${query}`);
+      const [mapRes, petriRes, confRes, perfRes] = await Promise.all([
+        fetch(`/api/map-data?${query}`),
+        fetch(`/api/discovery-json?${query}`),
+        fetch(`/api/conformance?${query}`),
+        fetch(`/api/performance-json?${query}`)
+      ]);
+
       if (mapRes.ok) {
-        const data = await mapRes.json();
-        setMapData(data);
+        setMapData(await mapRes.json());
       } else {
         setMapData(null);
       }
 
-      // 2. Fetch Petri net JSON discovery data
-      const petriRes = await fetch(`/api/discovery-json?${query}`);
       if (petriRes.ok) {
-        const data = await petriRes.json();
-        setPetriNetData(data);
+        setPetriNetData(await petriRes.json());
       } else {
         setPetriNetData(null);
       }
 
-      // 3. Fetch conformance analytics
-      const confRes = await fetch(`/api/conformance?${query}`);
       if (confRes.ok) {
-        const data = await confRes.json();
-        setConformanceData(data);
+        setConformanceData(await confRes.json());
       } else {
         setConformanceData(null);
       }
 
-      // 4. Fetch Directly-Follows Graph performance data
-      const perfRes = await fetch(`/api/performance-json?${query}`);
       if (perfRes.ok) {
-        const data = await perfRes.json();
-        setPerformanceData(data);
+        setPerformanceData(await perfRes.json());
       } else {
         setPerformanceData(null);
       }
@@ -204,6 +199,41 @@ export default function App() {
             </button>
           </div>
 
+          {/* Active Operational Context Badge */}
+          <div className="hidden xl:flex items-center gap-2 bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-lg text-xs">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                filters.regime?.includes('20s') || filters.regime?.includes('B')
+                  ? 'bg-indigo-500'
+                  : 'bg-amber-500'
+              }`}
+            />
+            <span className="font-bold text-slate-800">
+              Linha {filters.line}
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="font-semibold text-slate-600">
+              {filters.direction}
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="text-slate-500 text-[11px]">
+              {filters.startDate === filters.endDate
+                ? filters.startDate.split('-').reverse().join('/')
+                : `${filters.startDate.split('-').reverse().join('/')} a ${filters.endDate.split('-').reverse().join('/')}`}
+            </span>
+            <span
+              className={`px-1.5 py-0.5 text-[10px] font-extrabold rounded ${
+                filters.regime?.includes('20s') || filters.regime?.includes('B')
+                  ? 'bg-indigo-100 text-indigo-700'
+                  : 'bg-amber-100 text-amber-800'
+              }`}
+            >
+              {filters.regime?.includes('20s') || filters.regime?.includes('B')
+                ? 'Regime B (20s)'
+                : 'Regime A (2m)'}
+            </span>
+          </div>
+
           {/* Quick Metrics display */}
           <div className="flex items-center gap-6 text-xs border-l border-slate-100 pl-6 h-8">
             {conformanceData && (
@@ -241,6 +271,7 @@ export default function App() {
               isLogicalMode={isLogicalMode}
               setIsLogicalMode={setIsLogicalMode}
               isLoading={isLoading}
+              filters={filters}
             />
           )}
 

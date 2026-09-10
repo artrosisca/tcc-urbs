@@ -4,9 +4,31 @@ import { MapView } from '@deck.gl/core';
 import { TileLayer } from '@deck.gl/geo-layers';
 import { PathLayer, ScatterplotLayer, IconLayer, BitmapLayer } from '@deck.gl/layers';
 import { TripsLayer } from '@deck.gl/geo-layers';
-import { Play, Pause, Compass, MapPin } from 'lucide-react';
+import { Play, Pause, Compass, MapPin, Bus, Calendar, Activity, CheckCircle2, Clock, RotateCw } from 'lucide-react';
 
-export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogicalMode, isLoading }) {
+const LINE_ARCHETYPES = {
+  '010': 'Interbairros I (Circular)',
+  '541': 'Bairro Novo A (Alimentador)',
+  '542': 'Bairro Novo B (Alimentador)',
+  '500': 'Ligeirinho Boqueirão',
+  '203': 'Santa Cândida / Capão Raso',
+  '303': 'Centenário / Campo Comprido'
+};
+
+function formatDisplayPeriod(startDate, endDate) {
+  if (!startDate) return '';
+  const toBr = (iso) => {
+    if (!iso || !iso.includes('-')) return iso;
+    const parts = iso.split('-');
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  };
+  if (!endDate || startDate === endDate) {
+    return toBr(startDate);
+  }
+  return `${toBr(startDate)} a ${toBr(endDate)}`;
+}
+
+export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogicalMode, isLoading, filters }) {
   const [viewState, setViewState] = useState({
     longitude: -49.2768, // Curitiba
     latitude: -25.4311,
@@ -27,6 +49,33 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
   const [trips, setTrips] = useState([]);
   const [rawStops, setRawStops] = useState([]);
   const [shapeLine, setShapeLine] = useState([]);
+
+  // Active metadata & staleness detection
+  const meta = mapData?.metadata;
+  const activeLine = meta?.line || filters?.line || '541';
+  const activeDirection = meta?.direction || filters?.direction || 'VOLTA';
+  const activeStartDate = meta?.start_date || filters?.startDate || '';
+  const activeEndDate = meta?.end_date || filters?.endDate || '';
+  const displayRegime = meta?.regime || (filters?.regime?.includes('20s') || filters?.regime?.includes('B') ? 'B' : 'A');
+
+  const isDirectionMismatch = Boolean(
+    filters?.direction &&
+    meta?.direction &&
+    meta.direction !== 'CIRCULAR' &&
+    meta.direction !== filters.direction
+  );
+
+  const isDataStale = Boolean(
+    filters && meta && (
+      (filters.line && meta.line !== filters.line) ||
+      isDirectionMismatch ||
+      (filters.startDate && meta.start_date !== filters.startDate) ||
+      (filters.endDate && meta.end_date !== filters.endDate)
+    )
+  );
+
+  const totalStopsCount = mapData?.stops?.length ?? rawStops.length;
+  const totalTripsCount = mapData?.metrics?.total_viagens ?? trips.length;
 
   useEffect(() => {
     if (!mapData) return;
@@ -279,6 +328,86 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
             >
               Físico (Real GPS)
             </button>
+          </div>
+        </div>
+
+        {/* Floating Active Configuration & Sync Status Chip */}
+        <div className="absolute top-4 right-4 bg-white/95 backdrop-blur shadow-md rounded-xl p-3 border border-slate-200/90 z-20 max-w-sm space-y-2 select-none">
+          {/* Header row: Status indicator + Regime badge */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+                {isLoading || isDataStale ? (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                  </>
+                ) : (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </>
+                )}
+              </span>
+              <span className="font-bold tracking-tight text-slate-700 text-xs flex items-center gap-1.5">
+                {isLoading ? (
+                  <>
+                    <RotateCw className="h-3 w-3 animate-spin text-amber-600" />
+                    <span>Carregando mapa...</span>
+                  </>
+                ) : isDataStale ? (
+                  <>
+                    <RotateCw className="h-3 w-3 animate-spin text-amber-600" />
+                    <span>Sincronizando com filtros...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>Mapa Sincronizado</span>
+                  </>
+                )}
+              </span>
+            </div>
+
+            <span
+              className={`px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wider uppercase ${
+                displayRegime === 'B'
+                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-200/70'
+                  : 'bg-amber-100 text-amber-800 border border-amber-200/70'
+              }`}
+            >
+              {displayRegime === 'B' ? 'Regime B (20s)' : 'Regime A (2m)'}
+            </span>
+          </div>
+
+          {/* Line & Direction row */}
+          <div className="flex items-center gap-1.5 border-t border-slate-100 pt-2">
+            <Bus className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
+            <span className="font-extrabold text-slate-800 text-xs">
+              Linha {activeLine}
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
+              {activeDirection}
+            </span>
+            {LINE_ARCHETYPES[activeLine] && (
+              <span className="text-slate-400 text-[10px] truncate max-w-[130px]" title={LINE_ARCHETYPES[activeLine]}>
+                {LINE_ARCHETYPES[activeLine]}
+              </span>
+            )}
+          </div>
+
+          {/* Period & counts row */}
+          <div className="flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-150/60">
+            <div className="flex items-center gap-1 font-medium">
+              <Calendar className="h-3 w-3 text-slate-400 flex-shrink-0" />
+              <span className="text-[10px]">{formatDisplayPeriod(activeStartDate, activeEndDate)}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600">
+              <span>{totalStopsCount} paradas</span>
+              <span>•</span>
+              <span>{totalTripsCount} viagens</span>
+            </div>
           </div>
         </div>
 

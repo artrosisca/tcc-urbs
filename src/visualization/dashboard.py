@@ -14,7 +14,7 @@ import pandas as pd
 import numpy as np
 from src.etl.load_c3sl import load_static_data
 from src.etl.trajectory import TrajectoryReconstructor
-from src.etl.repository import default_telemetry_repo, FilesystemTelemetryAdapter
+from src.etl.repository import default_telemetry_repo, FilesystemTelemetryAdapter, _fix_encoding
 from src.mining.engine import ProcessMiningEngine
 
 app = FastAPI(title="Process Mining URBS — CCO API")
@@ -72,8 +72,10 @@ def filter_df_by_hours(df: pd.DataFrame, start_hour: str = None, end_hour: str =
     if df.empty:
         return df
     
-    # Garantir datetime
+    # Garantir datetime e sanitizar encoding de nomes de paradas
     df['time:timestamp'] = pd.to_datetime(df['time:timestamp'])
+    if 'concept:name' in df.columns:
+        df['concept:name'] = df['concept:name'].apply(_fix_encoding)
     
     if start_hour and end_hour:
         try:

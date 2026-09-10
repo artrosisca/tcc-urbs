@@ -139,7 +139,8 @@ def test_spline_interpolation():
     print(tabulate(comparison, headers="keys", tablefmt="grid"))
     
     # Validar monotonicidade estrita
-    t_spline_vals = [events_df[events_df['stop_seq'] == s]['timestamp'].iloc[0] for s in stops_df['SEQ']]
+    visited_seqs = [s for s in stops_df['SEQ'] if not events_df[events_df['stop_seq'] == s].empty]
+    t_spline_vals = [events_df[events_df['stop_seq'] == s]['timestamp'].iloc[0] for s in visited_seqs]
     diff_t_spline = np.diff([ts.timestamp() for ts in t_spline_vals])
     is_strict = np.all(diff_t_spline > 0)
     print(f"\nMonotonicidade estrita no Log de Eventos Spline: {'Sim' if is_strict else 'Nao (ha empates ou voltas)'}")

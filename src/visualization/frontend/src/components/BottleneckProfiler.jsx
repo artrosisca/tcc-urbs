@@ -205,7 +205,7 @@ export default function BottleneckProfiler({ performanceData }) {
           </div>
 
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-[10px] text-slate-500 font-medium">
-            💡 Dica: Arcos avermelhados indicam gargalos com trânsito lento, necessitando auditoria de tráfego.
+            💡 Dica: Arcos avermelhados indicam segmentos com tempo de trânsito elevado no DFG (potencial gargalo estrutural).
           </div>
         </div>
       </div>

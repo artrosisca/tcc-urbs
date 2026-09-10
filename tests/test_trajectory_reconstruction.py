@@ -170,3 +170,52 @@ def test_build_replay_trips(sample_raw_telemetry, sample_static_data):
     assert "case_id" in replays[0]
     assert "vehicle" in replays[0]
     assert len(replays[0]["path"]) == 3
+
+
+def test_match_trip_omits_skipped_stops_exceeding_threshold(sample_static_data):
+    """
+    TDD Spec (Banca Rodada 2):
+    Verify that stops where the bus never came within the acceptance threshold
+    (150m) are omitted from the event log instead of being artificially interpolated by PCHIP.
+    """
+    base_time = datetime(2025, 10, 24, 8, 0, 0)
+    # Trip visits Stop 1 and Stop 3, but completely bypasses Stop 2 (Praça do Japão)
+    records = [
+        {"COD": "VEH01", "CODIGOLINHA": "541", "LAT": -25.5350, "LON": -49.2710, "ts": base_time, "SENT": "VOLTA", "TABELA": "1"},
+        {"COD": "VEH01", "CODIGOLINHA": "541", "LAT": -25.5000, "LON": -49.2715, "ts": base_time + timedelta(minutes=5), "SENT": "VOLTA", "TABELA": "1"},
+        {"COD": "VEH01", "CODIGOLINHA": "541", "LAT": -25.4350, "LON": -49.2730, "ts": base_time + timedelta(minutes=10), "SENT": "VOLTA", "TABELA": "1"},
+    ]
+    trip_df = pd.DataFrame(records)
+    events_df = TrajectoryReconstructor.match_trip(trip_df, sample_static_data, line_code="541")
+    
+    stop_names = events_df["stop_name"].tolist()
+    assert "Terminal Sítio Cercado" in stop_names
+    assert "Praça Rui Barbosa" in stop_names
+    # Praça do Japão is ~8km away from the trajectory (min_dist >> 150m). It MUST be omitted from the log!
+    assert "Praça do Japão" not in stop_names
+
+
+def test_stop_shape_idx_does_not_collapse_in_circular_route():
+    """
+    TDD Spec (Banca Rodada 2 & Ata item 4):
+    Verify that in a circular or return route where Stop 3 revisits the initial terminal (index 0),
+    stop_shape_idx does not collapse to the maximum index of earlier stops due to maximum.accumulate.
+    """
+    stops_df = pd.DataFrame([
+        {"SEQ": 1, "NUM": "101", "NOME": "Terminal A", "SENTIDO": "CIRCULAR", "LAT": -25.430, "LON": -49.270},
+        {"SEQ": 2, "NUM": "102", "NOME": "Ponto Intermediario B", "SENTIDO": "CIRCULAR", "LAT": -25.450, "LON": -49.270},
+        {"SEQ": 3, "NUM": "103", "NOME": "Terminal A Retorno", "SENTIDO": "CIRCULAR", "LAT": -25.430, "LON": -49.270},
+    ])
+    shape_df = pd.DataFrame([
+        {"SHP": "SHP_CIRC", "LAT": -25.430, "LON": -49.270},  # idx 0
+        {"SHP": "SHP_CIRC", "LAT": -25.440, "LON": -49.270},  # idx 1
+        {"SHP": "SHP_CIRC", "LAT": -25.450, "LON": -49.270},  # idx 2
+    ])
+    static_data = {"pontos": stops_df, "shape": shape_df, "tabela": pd.DataFrame()}
+
+    sentido, stops_f, _ = TrajectoryReconstructor.resolve_route_geometry(static_data, direction="CIRCULAR")
+
+    indices = stops_f["shape_idx"].tolist()
+    # Terminal A Retorno is at Pt 0 (LAT: -25.430), so its true nearest shape_idx is 0.
+    # np.maximum.accumulate wrongly forced indices to [0, 2, 2].
+    assert indices == [0, 2, 0], f"Expected [0, 2, 0], but got {indices} (collapsed by maximum.accumulate)"

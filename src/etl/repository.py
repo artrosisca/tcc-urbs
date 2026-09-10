@@ -32,16 +32,16 @@ def _parse_coord(val: Any) -> Optional[float]:
 
 
 def _fix_encoding(text: Any) -> Any:
-    """Repair Latin-1 / UTF-8 mixed encodings."""
+    """Repair Latin-1 / UTF-8 mixed encodings without corrupting valid UTF-8."""
     if not isinstance(text, str):
         return text
-    try:
-        return text.encode('latin1').decode('utf-8')
-    except (UnicodeEncodeError, UnicodeDecodeError):
+    # Only attempt repair if typical double-encoded Latin-1 bytes are present
+    if any(m in text for m in ['Ã', 'Â', 'â', '']):
         try:
-            return text.encode('utf-8').decode('latin-1')
-        except Exception:
-            return text
+            return text.encode('latin1').decode('utf-8')
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+    return text
 
 
 class TelemetryStorageAdapter(ABC):

@@ -27,8 +27,11 @@ The strictly ordered sequence of physical boarding points assigned to a directio
 _Avoid_: Stop list, itinerary, stop schedule
 
 **Operational Regime (Regime Operacional)**:
-The operational schedule period of the transit network (e.g. Regime A: Out/2025 vs Regime B: Dez/2025).
+The operational schedule period and telemetry sampling cadence of the transit network:
+- **Regime A (Out/2025)**: Standard collection (~120s interval), run from `2025-10-24 02:32:48` to `2025-10-29 12:29:23` (5 days, 9h 56m, ~5.08M GPS records across 127 hourly CSV files).
+- **Regime B (Dez/2025)**: High-frequency collection (~20s interval), run from `2025-12-02 00:03:05` to `2025-12-08 23:27:09` (6 days, 23h 24m / ~7 days).
 _Avoid_: Phase, schedule batch, version
+
 
 ### Telemetry Storage & Access
 

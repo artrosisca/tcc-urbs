@@ -214,8 +214,22 @@ def resolve_direction_subset(df_log: pd.DataFrame, direction: str):
 # 3. Endpoint de Dados Geográficos do Mapa e Métricas Gerais (Com Filtro de Horário On-the-Fly)
 @app.get("/api/map-data")
 def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
+    regime = "A" if "2025-10" in start_date else "B"
     if direction not in ["IDA", "VOLTA", "CIRCULAR"]:
-        return {"stops": [], "shape": [], "segments": [], "replay_trips": [], "metrics": {}}
+        return {
+            "stops": [],
+            "shape": [],
+            "segments": [],
+            "replay_trips": [],
+            "metrics": {},
+            "metadata": {
+                "line": line,
+                "direction": direction,
+                "start_date": start_date,
+                "end_date": end_date,
+                "regime": regime
+            }
+        }
     csv_path = find_event_log_file(line, start_date, end_date)
     if not csv_path or not os.path.exists(csv_path):
         raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
@@ -226,7 +240,20 @@ def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VO
         
         stops_df = static_data.get('pontos', pd.DataFrame())
         if stops_df.empty:
-            return {"stops": [], "shape": [], "segments": [], "replay_trips": [], "metrics": {}}
+            return {
+                "stops": [],
+                "shape": [],
+                "segments": [],
+                "replay_trips": [],
+                "metrics": {},
+                "metadata": {
+                    "line": line,
+                    "direction": direction,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "regime": regime
+                }
+            }
             
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
         chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
@@ -278,6 +305,13 @@ def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VO
                 "total_eventos": total_eventos,
                 "veiculos_ativos": veiculos_ativos,
                 "taxa_interpolacao": taxa_interpolacao
+            },
+            "metadata": {
+                "line": line,
+                "direction": chosen_dir,
+                "start_date": start_date,
+                "end_date": end_date,
+                "regime": regime
             }
         }
     except HTTPException:

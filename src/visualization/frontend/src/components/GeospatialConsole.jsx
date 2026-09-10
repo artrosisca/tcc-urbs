@@ -145,10 +145,10 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
 
   // Deck.gl layers setup
   const layers = [
-    // 1. Tile layer for map base (CartoDB Positron Light)
+    // 1. Tile layer for map base (OpenStreetMap / CartoDB base tiles - cartocdn / openstreetmap attribution)
     new TileLayer({
       id: 'base-tiles',
-      data: 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+      data: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
       minZoom: 0,
       maxZoom: 19,
       tileSize: 256,

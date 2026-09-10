@@ -29,7 +29,9 @@ export default function SidebarFilters({
     }
   };
 
-  const currentRegimeKey = Object.keys(regimeConfig).find(k => filters.regime.includes(k.split(' ')[0])) || 'Regime B (20s)';
+  const currentRegimeKey = regimeConfig[filters.regime]
+    ? filters.regime
+    : (filters.regime?.includes('20s') || filters.regime?.includes('B') ? 'Regime B (20s)' : 'Regime A (2m)');
   const currentPeriods = regimeConfig[currentRegimeKey]?.periods || [];
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function SidebarFilters({
       }
     };
     fetchLines();
-  }, [filters.regime]);
+  }, [currentRegimeKey]);
 
   // Check available trips status
   useEffect(() => {

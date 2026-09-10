@@ -302,7 +302,6 @@ class TrajectoryReconstructor:
             shape_lats = shape_filtered['LAT'].values
             shape_lons = shape_filtered['LON'].values
             stop_shape_idx = cls.map_gps_to_shape(stops_filtered['LAT'].values, stops_filtered['LON'].values, shape_lats, shape_lons)
-            stop_shape_idx = np.maximum.accumulate(stop_shape_idx)
             stops_filtered['shape_idx'] = stop_shape_idx
 
         return sentido_static, stops_filtered, shape_filtered
@@ -313,10 +312,15 @@ class TrajectoryReconstructor:
         trip_df: pd.DataFrame,
         static_data: Dict[str, pd.DataFrame],
         line_code: Optional[str] = None,
-        enforce_monotonicity: bool = True
+        enforce_monotonicity: bool = True,
+        max_stop_distance: float = 150.0
     ) -> pd.DataFrame:
         """
         Reconstruct stop passage events and timestamps for a single trip via HMM matching and PCHIP spline.
+
+        Stops whose minimum distance to the trip trajectory exceeds ``max_stop_distance`` are
+        omitted from the event log rather than being artificially interpolated, so downstream
+        conformance checking can legitimately detect the missing token.
         """
         if trip_df.empty:
             return pd.DataFrame()
@@ -345,7 +349,6 @@ class TrajectoryReconstructor:
         gps_ts = trip_df['ts'].values
 
         gps_shape_idx = cls.map_gps_to_shape_hmm(gps_lats, gps_lons, shape_lats, shape_lons)
-        gps_shape_idx = np.maximum.accumulate(gps_shape_idx)
         trip_df['shape_idx'] = gps_shape_idx
 
         gps_cum_dists = shape_cum_dists[gps_shape_idx]
@@ -353,7 +356,6 @@ class TrajectoryReconstructor:
         stop_lats = stops_filtered['LAT'].values
         stop_lons = stops_filtered['LON'].values
         stop_shape_idx = cls.map_gps_to_shape(stop_lats, stop_lons, shape_lats, shape_lons)
-        stop_shape_idx = np.maximum.accumulate(stop_shape_idx)
         stops_filtered['shape_idx'] = stop_shape_idx
         stops_filtered['cum_dist'] = shape_cum_dists[stop_shape_idx]
 
@@ -383,6 +385,8 @@ class TrajectoryReconstructor:
                 gps_lons
             )
             min_dist = dists.min() if len(dists) > 0 else 0.0
+            if min_dist > max_stop_distance:
+                continue
             s_stop = stop['cum_dist']
 
             # PCHIP Interpolation / Extrapolation

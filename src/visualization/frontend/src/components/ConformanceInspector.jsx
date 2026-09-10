@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, CheckCircle, Percent, Activity } from 'lucide-react';
+import { ShieldAlert, CheckCircle, Percent, Activity, Compass } from 'lucide-react';
 
 export default function ConformanceInspector({ conformanceData }) {
   if (!conformanceData) {
@@ -15,12 +15,12 @@ export default function ConformanceInspector({ conformanceData }) {
   return (
     <div className="w-full h-full bg-slate-50 flex flex-col p-6 overflow-y-auto space-y-6">
       <div>
-        <h2 className="text-sm font-bold text-slate-800">Inspetor de Conformidade Operacional</h2>
-        <p className="text-xs text-slate-500">Auditoria estatística de desvios e alinhamento das viagens reais contra o planejado</p>
+        <h2 className="text-sm font-bold text-slate-800">Inspetor de Conformidade Normativa Topológica</h2>
+        <p className="text-xs text-slate-500">Estimativa estatística de aderência ao traçado planejado e detecção de paradas omitidas</p>
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
           <div className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
             <Percent className="h-5 w-5" />
@@ -59,6 +59,18 @@ export default function ConformanceInspector({ conformanceData }) {
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Paradas Puladas</div>
             <div className="text-xl font-extrabold text-slate-800">
               {skipped_stops ? skipped_stops.reduce((acc, curr) => acc + curr.count, 0) : 0}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
+          <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
+            <Compass className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Incerteza GPS (Interpoladas)</div>
+            <div className="text-xl font-extrabold text-slate-800">
+              {deviant_trips ? deviant_trips.reduce((acc, trip) => acc + (trip.interpolated_count || 0), 0) : 0}
             </div>
           </div>
         </div>

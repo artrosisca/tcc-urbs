@@ -15,6 +15,7 @@ import numpy as np
 import pm4py
 from pm4py.objects.petri_net.obj import PetriNet, Marking
 from pm4py.objects.petri_net.utils import petri_utils
+from src.etl.repository import _fix_encoding
 
 
 def _get_fallback_svg(title: str, message: str, tip: str = "") -> str:
@@ -37,11 +38,14 @@ class ProcessMiningEngine:
 
     @staticmethod
     def format_event_log(df: pd.DataFrame) -> Any:
-        """Format DataFrame for PM4Py compliance."""
+        """Format DataFrame for PM4Py compliance with clean UTF-8 encoding."""
         if df.empty:
             return df
+        df_clean = df.copy()
+        if 'concept:name' in df_clean.columns:
+            df_clean['concept:name'] = df_clean['concept:name'].apply(_fix_encoding)
         return pm4py.format_dataframe(
-            df,
+            df_clean,
             case_id='case:concept:name',
             activity_key='concept:name',
             timestamp_key='time:timestamp'
@@ -188,6 +192,9 @@ class ProcessMiningEngine:
 
             if stops_dir.empty:
                 continue
+
+            if 'NOME' in stops_dir.columns:
+                stops_dir['NOME'] = stops_dir['NOME'].apply(_fix_encoding)
 
             # 1. Normative Petri Net & Token Replay
             net, init_m, final_m = cls.create_normative_petri_net(stops_dir)

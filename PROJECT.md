@@ -3,7 +3,10 @@
 ## Architecture
 - **Backend (Python FastAPI)**: Serves static frontend assets and exposes REST API endpoints for process mining, data retrieval, and dashboard stats (e.g. conformance, discovery, performance).
 - **Frontend (HTML/CSS/JS)**: Renders a dashboard with a sidebar, Leaflet map, interactive filters (regime/period, bus lines), and tabs for process mining analysis.
-- **Data (CSV/JSON)**: Stored in data folders (`dados_c3sl`, `dados_em_tempo_real_2026`, `dados_processados`) containing bus GPS data and processed event logs.
+- **Data (CSV/JSON)**: Stored in data folders (`dados_c3sl`, `dados_em_tempo_real_2026`, `dados_processados`) containing bus GPS telemetry and processed event logs.
+  - **Regime A (Out/2025)**: Standard collection (~120s interval), `2025-10-24 02:32:48` to `2025-10-29 12:29:23` (5d 9h 56m, ~5.08M GPS records across 127 hourly CSVs).
+  - **Regime B (Dez/2025)**: High-frequency collection (~20s interval), `2025-12-02 00:03:05` to `2025-12-08 23:27:09` (6d 23h 24m / ~7d).
+
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |

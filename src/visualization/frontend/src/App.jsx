@@ -4,7 +4,8 @@ import GeospatialConsole from './components/GeospatialConsole';
 import ProcessVisualizer from './components/ProcessVisualizer';
 import ConformanceInspector from './components/ConformanceInspector';
 import BottleneckProfiler from './components/BottleneckProfiler';
-import { Layers, GitCommit, ShieldAlert, BarChart3, Database } from 'lucide-react';
+import FleetAuditView from './components/FleetAuditView';
+import { Layers, GitCommit, ShieldAlert, BarChart3, Database, ClipboardCheck } from 'lucide-react';
 
 export default function App() {
   const [filters, setFilters] = useState({
@@ -41,6 +42,8 @@ export default function App() {
       if (mapRes.ok) {
         const data = await mapRes.json();
         setMapData(data);
+      } else {
+        setMapData(null);
       }
 
       // 2. Fetch Petri net JSON discovery data
@@ -48,6 +51,8 @@ export default function App() {
       if (petriRes.ok) {
         const data = await petriRes.json();
         setPetriNetData(data);
+      } else {
+        setPetriNetData(null);
       }
 
       // 3. Fetch conformance analytics
@@ -55,6 +60,8 @@ export default function App() {
       if (confRes.ok) {
         const data = await confRes.json();
         setConformanceData(data);
+      } else {
+        setConformanceData(null);
       }
 
       // 4. Fetch Directly-Follows Graph performance data
@@ -62,9 +69,12 @@ export default function App() {
       if (perfRes.ok) {
         const data = await perfRes.json();
         setPerformanceData(data);
+      } else {
+        setPerformanceData(null);
       }
     } catch (err) {
       console.error('Error fetching dashboard metrics:', err);
+      setMapData(null);
     } finally {
       setIsLoading(false);
     }
@@ -123,6 +133,20 @@ export default function App() {
         <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between flex-shrink-0 shadow-xs">
           {/* Navigation/Views Tab selectors */}
           <div className="flex items-center gap-1">
+            <button
+              id="tab-audit"
+              type="button"
+              onClick={() => setActiveTab('audit')}
+              className={`flex items-center gap-1.5 py-2 px-4 rounded-lg text-xs font-semibold tracking-tight transition-all ${
+                activeTab === 'audit'
+                  ? 'bg-slate-100 text-slate-800 font-bold'
+                  : 'text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              <ClipboardCheck className="h-3.5 w-3.5" />
+              <span>Auditoria Diária (CCO)</span>
+            </button>
+
             <button
               id="tab-map"
               type="button"
@@ -203,6 +227,14 @@ export default function App() {
 
         {/* Tab Content Rendering */}
         <div className="flex-1 min-h-0 relative">
+          {activeTab === 'audit' && (
+            <FleetAuditView
+              filters={filters}
+              setFilters={setFilters}
+              setActiveTab={setActiveTab}
+            />
+          )}
+
           {activeTab === 'map' && (
             <GeospatialConsole
               mapData={mapData}

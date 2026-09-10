@@ -10,6 +10,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
+import glob
+from typing import Optional
 import pandas as pd
 import numpy as np
 from src.etl.load_c3sl import load_static_data
@@ -168,13 +170,37 @@ def check_trips(line: str, start_date: str, end_date: str, start_hour: str = Non
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+def find_event_log_file(line: str, start_date: str, end_date: str) -> Optional[str]:
+    # Exact match first
+    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
+    if os.path.exists(csv_path):
+        return csv_path
+    # Match line with start_date
+    candidates = sorted(glob.glob(f"data/dados_processados/event_log_{line}_{start_date}_*.csv"))
+    if candidates:
+        return candidates[-1]
+    # Fallback to any file for this line
+    candidates = sorted(glob.glob(f"data/dados_processados/event_log_{line}_*.csv"))
+    if candidates:
+        return candidates[-1]
+    return None
+
+def resolve_direction_subset(df_log: pd.DataFrame, direction: str):
+    available_dirs = [str(d) for d in df_log['gps_direction'].dropna().unique()] if 'gps_direction' in df_log.columns else []
+    if direction in available_dirs:
+        return direction, df_log[df_log['gps_direction'] == direction]
+    if available_dirs:
+        chosen = available_dirs[0]
+        return chosen, df_log[df_log['gps_direction'] == chosen]
+    return direction, df_log
+
 # 3. Endpoint de Dados Geográficos do Mapa e Métricas Gerais (Com Filtro de Horário On-the-Fly)
 @app.get("/api/map-data")
 def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
-    if direction not in ["IDA", "VOLTA"]:
+    if direction not in ["IDA", "VOLTA", "CIRCULAR"]:
         return {"stops": [], "shape": [], "segments": [], "replay_trips": [], "metrics": {}}
-    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
-    if not os.path.exists(csv_path):
+    csv_path = find_event_log_file(line, start_date, end_date)
+    if not csv_path or not os.path.exists(csv_path):
         raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
     try:
@@ -186,11 +212,11 @@ def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VO
             return {"stops": [], "shape": [], "segments": [], "replay_trips": [], "metrics": {}}
             
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
-        df_log_dir = df_log[df_log['gps_direction'] == direction]
+        chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
         sentido_static, stops_filtered, shape_filtered = TrajectoryReconstructor.resolve_route_geometry(
             static_data,
-            direction=direction,
+            direction=chosen_dir,
             trip_sample_df=df_log_dir
         )
         
@@ -245,14 +271,14 @@ def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VO
 # 4. Endpoint de Descoberta de Processos (/api/discovery) -> Retorna SVG da Rede de Petri
 @app.get("/api/discovery")
 def get_discovery(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
-    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
-    if not os.path.exists(csv_path):
+    csv_path = find_event_log_file(line, start_date, end_date)
+    if not csv_path or not os.path.exists(csv_path):
         raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
     try:
         df_log_raw = pd.read_csv(csv_path)
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
-        df_log_dir = df_log[df_log['gps_direction'] == direction]
+        chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
         if df_log_dir.empty:
             raise HTTPException(status_code=404, detail="Nenhum evento encontrado para este sentido.")
@@ -267,15 +293,16 @@ def get_discovery(line: str, start_date: str, end_date: str, direction: str = "V
 # 5. Endpoint de Conformidade (/api/conformance) -> Retorna trace fitness e paradas puladas em JSON
 @app.get("/api/conformance")
 def get_conformance(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
-    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
-    if not os.path.exists(csv_path):
+    csv_path = find_event_log_file(line, start_date, end_date)
+    if not csv_path or not os.path.exists(csv_path):
         raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
     try:
         df_log_raw = pd.read_csv(csv_path)
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
+        chosen_dir, _ = resolve_direction_subset(df_log, direction)
         static_data = load_static_data(start_date, line)
-        return ProcessMiningEngine.evaluate_conformance(df_log, static_data['pontos'], direction=direction)
+        return ProcessMiningEngine.evaluate_conformance(df_log, static_data['pontos'], direction=chosen_dir)
     except HTTPException:
         raise
     except Exception as e:
@@ -284,14 +311,14 @@ def get_conformance(line: str, start_date: str, end_date: str, direction: str = 
 # 6. Endpoint de Desempenho (/api/performance) -> Retorna SVG do Performance DFG (travel times)
 @app.get("/api/performance")
 def get_performance(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
-    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
-    if not os.path.exists(csv_path):
+    csv_path = find_event_log_file(line, start_date, end_date)
+    if not csv_path or not os.path.exists(csv_path):
         raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
     try:
         df_log_raw = pd.read_csv(csv_path)
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
-        df_log_dir = df_log[df_log['gps_direction'] == direction]
+        chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
         if df_log_dir.empty:
             raise HTTPException(status_code=404, detail="Nenhum evento encontrado para este sentido.")
@@ -306,14 +333,14 @@ def get_performance(line: str, start_date: str, end_date: str, direction: str = 
 # 6.5. Endpoint de Descoberta de Processos em JSON (/api/discovery-json)
 @app.get("/api/discovery-json")
 def get_discovery_json(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
-    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
-    if not os.path.exists(csv_path):
+    csv_path = find_event_log_file(line, start_date, end_date)
+    if not csv_path or not os.path.exists(csv_path):
         raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
     try:
         df_log_raw = pd.read_csv(csv_path)
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
-        df_log_dir = df_log[df_log['gps_direction'] == direction]
+        chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
         if df_log_dir.empty:
             raise HTTPException(status_code=404, detail="Nenhum evento encontrado para este sentido.")
@@ -327,14 +354,14 @@ def get_discovery_json(line: str, start_date: str, end_date: str, direction: str
 # 6.6. Endpoint de Desempenho em JSON (/api/performance-json)
 @app.get("/api/performance-json")
 def get_performance_json(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
-    csv_path = f"data/dados_processados/event_log_{line}_{start_date}_{end_date}.csv"
-    if not os.path.exists(csv_path):
+    csv_path = find_event_log_file(line, start_date, end_date)
+    if not csv_path or not os.path.exists(csv_path):
         raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
     try:
         df_log_raw = pd.read_csv(csv_path)
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
-        df_log_dir = df_log[df_log['gps_direction'] == direction]
+        chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
         if df_log_dir.empty:
             raise HTTPException(status_code=404, detail="Nenhum evento encontrado para este sentido.")
@@ -344,6 +371,75 @@ def get_performance_json(line: str, start_date: str, end_date: str, direction: s
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# 6.7. Endpoint de Auditoria Diária da Frota (Visão Executiva CCO)
+@app.get("/api/fleet-audit")
+def get_fleet_audit(regime: str = "B"):
+    lines = default_telemetry_repo.list_available_lines(regime=regime)
+    start_date = "2025-10-24" if regime == "A" else "2025-12-02"
+    end_date = "2025-10-30" if regime == "A" else "2025-12-08"
+    
+    fleet_lines = []
+    line_names = {
+        "010": "Interbairros I (Circular)",
+        "541": "Bairro Novo A (Troncal)",
+        "542": "Bairro Novo B (Alimentador)"
+    }
+    
+    for l in lines:
+        csv_path = find_event_log_file(l, start_date, end_date)
+        if not csv_path or not os.path.exists(csv_path):
+            continue
+        try:
+            df = pd.read_csv(csv_path)
+            total_cases = int(df['case:concept:name'].nunique()) if 'case:concept:name' in df.columns else 0
+            
+            static_data = load_static_data(start_date, l)
+            stops_df = static_data.get('pontos', pd.DataFrame())
+            chosen_dir, df_dir = resolve_direction_subset(df, "VOLTA")
+            conf = ProcessMiningEngine.evaluate_conformance(df, stops_df, direction=chosen_dir)
+            fit_pct = float(conf.get("fit_percentage", 0.0))
+            avg_fit = float(conf.get("avg_fitness", 0.0))
+            skipped_stops_count = sum(s.get("count", 0) for s in conf.get("skipped_stops", []))
+            
+            perf = ProcessMiningEngine.analyze_performance(df_dir, as_svg=False)
+            bottlenecks_count = sum(1 for link in perf.get("links", []) if link.get("avg_duration_sec", 0) > 120)
+            
+            status = "CONFORME"
+            if fit_pct < 90 or bottlenecks_count > 5:
+                status = "CRÍTICO"
+            elif fit_pct < 97 or bottlenecks_count > 2 or skipped_stops_count > 20:
+                status = "ATENÇÃO"
+                
+            fleet_lines.append({
+                "line": l,
+                "name": line_names.get(l, f"Linha {l}"),
+                "total_cases": total_cases,
+                "fit_percentage": fit_pct,
+                "avg_fitness": avg_fit,
+                "skipped_stops_count": skipped_stops_count,
+                "bottlenecks_count": bottlenecks_count,
+                "status": status,
+                "direction": chosen_dir
+            })
+        except Exception:
+            pass
+            
+    total_trips = sum(f["total_cases"] for f in fleet_lines)
+    avg_global_fit = float(np.mean([f["fit_percentage"] for f in fleet_lines])) if fleet_lines else 0.0
+    total_skipped = sum(f["skipped_stops_count"] for f in fleet_lines)
+    
+    return {
+        "regime": regime,
+        "date_range": f"{start_date} a {end_date}",
+        "summary": {
+            "total_lines": len(fleet_lines),
+            "total_trips_audited": total_trips,
+            "avg_fleet_conformance": round(avg_global_fit, 1),
+            "total_skipped_stops": total_skipped
+        },
+        "lines": fleet_lines
+    }
 
 # 7. Configuração e montagem dos arquivos estáticos do front-end
 static_dir = os.path.join(os.path.dirname(__file__), "static")

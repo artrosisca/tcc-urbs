@@ -626,3 +626,21 @@ def test_scenario_full_process_mining_visualization():
     res_perf = client.get("/api/performance?line=541&start_date=2025-10-24&end_date=2025-10-30&direction=VOLTA")
     assert res_perf.status_code == 200
     assert "image/svg+xml" in res_perf.headers["content-type"]
+
+
+def test_api_fleet_audit_and_cache():
+    """Verify /api/fleet-audit returns summarized fleet data and utilizes memory caching."""
+    # First call computes or retrieves cached
+    res = client.get("/api/fleet-audit?regime=A")
+    assert res.status_code == 200
+    data = res.json()
+    assert "summary" in data
+    assert "lines" in data
+    assert data["regime"] == "A"
+    assert "avg_fleet_adherence" in data["summary"]
+    assert len(data["lines"]) >= 1
+
+    # Second call should be instant from cache
+    res_cached = client.get("/api/fleet-audit?regime=A")
+    assert res_cached.status_code == 200
+    assert res_cached.json() == data

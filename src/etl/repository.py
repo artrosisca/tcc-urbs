@@ -7,6 +7,7 @@ line discovery, encoding repair, and telemetry caching behind a clean seam.
 
 import os
 import re
+import glob
 import lzma
 import json
 from abc import ABC, abstractmethod
@@ -255,10 +256,23 @@ class FilesystemTelemetryAdapter(TelemetryStorageAdapter):
         return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
     def get_processed_event_log(self, line_code: str, start_date: str, end_date: str) -> Optional[pd.DataFrame]:
+        try:
+            datetime.strptime(str(start_date), "%Y-%m-%d")
+            datetime.strptime(str(end_date), "%Y-%m-%d")
+        except (ValueError, TypeError):
+            return None
+
         csv_path = os.path.join(self.processed_dir, f"event_log_{line_code}_{start_date}_{end_date}.csv")
         if os.path.exists(csv_path):
             try:
                 return pd.read_csv(csv_path)
+            except Exception:
+                return None
+        # Fallback matching start_date
+        candidates = sorted(glob.glob(os.path.join(self.processed_dir, f"event_log_{line_code}_{start_date}_*.csv")))
+        if candidates:
+            try:
+                return pd.read_csv(candidates[-1])
             except Exception:
                 return None
         return None

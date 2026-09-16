@@ -38,13 +38,17 @@ Cada viagem é projetada sobre o traçado físico (`shapeLinha`) utilizando um H
 
 Com $(s, t)$ dos pings projetados, estimamos o tempo de passagem em paradas com interpolador PCHIP (Piecewise Cubic Hermite Interpolating Polynomial), escolhido por garantir monotonicidade temporal (dt/ds ≥ 0), evitando *overshoots* e causalidades invertidas dos splines cúbicos naturais. Paradas cuja distância mínima ao trajeto excede o limiar de aceitação (150m) não são interpoladas: são **omitidas** do log, para que o *conformance checking* detecte legitamente a parada pulada.
 
-### 3.3.4 Qualidade dos Eventos
+### 3.3.4 Qualidade dos Eventos e Chaves Canônicas
 
-Cada evento `PASSAGE` carrega metadados de qualidade, incluindo a distância mínima observada e o indicador booleano `interpolated` (verdadeiro quando o ping mais próximo está a mais de 100m da parada), permitindo separar conformidade operacional de incerteza de sensoriamento.
+A fim de eliminar ambiguidades onde a URBS repete nomes de estações (o que causaria a falsa detecção de "saltos" topológicos), as atividades foram padronizadas com chaves canônicas incluindo o número sequencial da parada: `PASSAGEM_{SEQ:02d}_{NOME}`. Adicionalmente, cada evento carrega metadados de qualidade (como a distância mínima observada) e o indicador booleano `interpolated` (verdadeiro quando o ping mais próximo está a mais de 100m da parada), garantindo que as métricas de tempo de trânsito ignorem trechos puramente fabricados (sem suporte empírico real do GPS).
+
+### 3.3.5 Taxa de Censura Operacional
+
+Para preservar a integridade do modelo resultante, viagens com qualidade de telemetria criticamente baixa são descartadas. O sistema institui uma métrica rigorosa chamada *Taxa de Censura Operacional*, rejeitando viagens que contenham poucos pings úteis ou uma proporção de eventos interpolados superior a 90%. Dessa forma, o event log gerado baseia-se apenas em viagens com alta consistência física, impedindo que "dados lixo" poluam a Mineração de Processos.
 
 ## 3.4 Estruturação Final e Exportação do Log de Eventos
 
-O log estruturado segue as convenções do PM4Py: colunas `case:concept:name` (viagem identificada por veículo, linha, tabela e data), `concept:name` (atividade `PASSAGEM_{NOME}`), `time:timestamp` e atributos contextuais (`org:resource` = veículo, `tabela`) e de qualidade. A exportação ocorre em CSV e no formato padrão XES, permitindo o uso direto de algoritmos de descoberta e conformidade.
+O log estruturado segue as convenções do PM4Py: colunas `case:concept:name` (viagem identificada por veículo, linha, tabela e data), `concept:name` (atividade canônica `PASSAGEM_{SEQ}_{NOME}`), `time:timestamp` e atributos contextuais (`org:resource` = veículo, `tabela`, `interpolated`). A exportação ocorre em CSV e no formato padrão XES, permitindo o uso direto de algoritmos de descoberta e conformidade.
 
 ## 3.5 Análise Exploratória e Validação da Metodologia
 

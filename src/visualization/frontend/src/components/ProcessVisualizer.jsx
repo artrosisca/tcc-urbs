@@ -9,39 +9,43 @@ export default function ProcessVisualizer({ petriNetData }) {
 
     const svgElement = containerRef.current.querySelector('svg');
     if (svgElement) {
-      // Parse original dimensions
-      const originalViewBox = svgElement.getAttribute('viewBox');
-      
-      // Let the SVG fill the container, but remove viewBox so the browser doesn't auto-shrink it
+      // Remove viewBox to prevent the browser from shrinking the huge graph to fit the screen
       svgElement.setAttribute('width', '100%');
       svgElement.setAttribute('height', '100%');
       svgElement.removeAttribute('viewBox');
       svgElement.classList.add('cursor-grab', 'active:cursor-grabbing');
 
-      const svg = d3.select(svgElement);
-      const g = svg.select('g'); // the root graph0 element from Graphviz
-
-      if (!g.empty()) {
-        const zoom = d3.zoom()
-          .scaleExtent([0.1, 100]) // Allow massive zoom-in
-          .on('zoom', (event) => {
-            g.attr('transform', event.transform);
-          });
-
-        svg.call(zoom);
-
-        // Instead of shrinking to fit, start with a comfortable scale at the left (source)
-        // Adjust Y so it's centered vertically
-        const containerHeight = containerRef.current.clientHeight || 500;
-        const initialScale = 1.5; // Starts larger!
-        const initialY = containerHeight / 2 - (100 * initialScale);
-
-        const initialTransform = d3.zoomIdentity
-          .translate(20, initialY)
-          .scale(initialScale);
-          
-        svg.call(zoom.transform, initialTransform);
+      // Create a wrapper group for D3 zoom so we don't overwrite Graphviz's own transforms
+      let zoomWrapper = svgElement.querySelector('g.d3-zoom-wrapper');
+      if (!zoomWrapper) {
+        zoomWrapper = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        zoomWrapper.setAttribute('class', 'd3-zoom-wrapper');
+        const children = Array.from(svgElement.childNodes);
+        children.forEach(child => zoomWrapper.appendChild(child));
+        svgElement.appendChild(zoomWrapper);
       }
+
+      const svg = d3.select(svgElement);
+      const g = d3.select(zoomWrapper);
+
+      const zoom = d3.zoom()
+        .scaleExtent([0.1, 100])
+        .on('zoom', (event) => {
+          g.attr('transform', event.transform);
+        });
+
+      svg.call(zoom);
+
+      // Center the graph vertically and start at the left edge
+      const containerHeight = containerRef.current.clientHeight || 500;
+      const initialScale = 1.0; 
+      const initialY = containerHeight / 2 - (50 * initialScale);
+
+      const initialTransform = d3.zoomIdentity
+        .translate(20, initialY)
+        .scale(initialScale);
+        
+      svg.call(zoom.transform, initialTransform);
     }
   }, [petriNetData]);
 

@@ -300,7 +300,17 @@ def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VO
         veiculos_ativos = int(df_log_dir['org:resource'].nunique()) if 'org:resource' in df_log_dir.columns else 0
         taxa_interpolacao = float((df_log_dir['interpolated'].sum() / len(df_log_dir)) * 100) if (len(df_log_dir) > 0 and 'interpolated' in df_log_dir.columns) else 0.0
         
+        min_time_sec = 0
+        max_time_sec = 86400
+        if not df_log_raw.empty and 'time:timestamp' in df_log_raw.columns:
+            # Pegar o range real de dados na linha filtrada
+            times = pd.to_datetime(df_log_dir['time:timestamp'], errors='coerce')
+            if not times.empty:
+                min_time_sec = int(times.dt.hour.min() * 3600 + times.dt.minute.min() * 60)
+                max_time_sec = int(times.dt.hour.max() * 3600 + times.dt.minute.max() * 60 + 59)
+
         return {
+            "time_range": [min_time_sec, max_time_sec],
             "stops": stops_list,
             "shape": shape_coords,
             "segments": segments,

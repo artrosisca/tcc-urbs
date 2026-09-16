@@ -273,8 +273,11 @@ def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VO
         
         stops_list = []
         for idx, stop in stops_filtered.iterrows():
-            stop_name_log = f"PASSAGEM_{stop['NOME']}"
-            df_stop_events = df_log_dir[df_log_dir['concept:name'] == stop_name_log]
+            if 'stop_seq' in df_log_dir.columns:
+                df_stop_events = df_log_dir[df_log_dir['stop_seq'] == int(stop['SEQ'])]
+            else:
+                stop_name_log = f"PASSAGEM_{stop['NOME']}"
+                df_stop_events = df_log_dir[df_log_dir['concept:name'] == stop_name_log]
             passages = len(df_stop_events)
             is_interpolated = False
             if not df_stop_events.empty and 'interpolated' in df_stop_events.columns:

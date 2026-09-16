@@ -133,6 +133,59 @@ def test_reconstruct_event_log(sample_raw_telemetry, sample_static_data):
     assert "concept:name" in df_log.columns
     assert "time:timestamp" in df_log.columns
     assert df_log["concept:name"].str.startswith("PASSAGEM_").all()
+    # Canonical key: PASSAGEM_{SEQ:02d}_{NOME} (F1.1)
+    assert df_log["concept:name"].str.match(r"^PASSAGEM_\d{2}_").all()
+
+
+def test_segmentation_fallback_progress_reversal(sample_static_data):
+    """
+    TDD Spec (F1.2):
+    Without a reliable SENT column, trips must be segmented by reversal of
+    curvilinear progress along the shape instead of failing with KeyError.
+    """
+    base_time = datetime(2025, 10, 24, 8, 0, 0)
+    shape_pts = sample_static_data["shape"]
+    # One stop at each shape point so no ping is dropped by the 500m outlier filter
+    stops_df = pd.DataFrame([
+        {"SEQ": i + 1, "NUM": f"20{i}", "NOME": f"Parada {i + 1}", "SENTIDO": "VOLTA",
+         "LAT": shape_pts.iloc[i]["LAT"], "LON": shape_pts.iloc[i]["LON"]}
+        for i in range(len(shape_pts))
+    ])
+    static_data = {"pontos": stops_df, "shape": shape_pts, "tabela": pd.DataFrame()}
+
+    # Outbound: shape idx 0 -> 1 -> 2 ; Return: idx 1 -> 0 -> 0(+offset) (no SENT column)
+    coords = [(0, 0), (1, 5), (2, 10), (1, 15), (0, 20)]
+    records = [
+        {
+            "COD": "VEH09", "CODIGOLINHA": "541",
+            "LAT": shape_pts.iloc[i]["LAT"], "LON": shape_pts.iloc[i]["LON"],
+            "ts": base_time + timedelta(minutes=m), "TABELA": "1"
+        }
+        for i, m in coords
+    ]
+    # Final ping near stop 1 but far enough to survive the 5m jitter filter
+    records.append({
+        "COD": "VEH09", "CODIGOLINHA": "541",
+        "LAT": shape_pts.iloc[0]["LAT"] + 0.0001, "LON": shape_pts.iloc[0]["LON"] + 0.0001,
+        "ts": base_time + timedelta(minutes=25), "TABELA": "1"
+    })
+    df_raw = pd.DataFrame(records)
+    df_log = TrajectoryReconstructor.reconstruct_event_log(df_raw, static_data, line_code="541")
+
+    assert not df_log.empty
+    # The reversal at ping 4 (idx 2 -> 1) must have split the day into 2 trips
+    assert df_log["case:concept:name"].nunique() == 2
+
+
+def test_activity_naming_canonical_and_strippable():
+    """Verify canonical activity keys are built by stop identity and parseable."""
+    from src.etl.repository import activity_name_for_stop, strip_activity_name
+    name = activity_name_for_stop(3, "Rua São José dos Pinhais, 358 - Sítio Cercado")
+    assert name == "PASSAGEM_03_Rua São José dos Pinhais, 358 - Sítio Cercado"
+    assert strip_activity_name(name) == "Rua São José dos Pinhais, 358 - Sítio Cercado"
+    # Legacy name-only fallback stays parseable
+    assert strip_activity_name("PASSAGEM_Praça do Japão") == "Praça do Japão"
+    assert activity_name_for_stop(None, "Praça do Japão") == "PASSAGEM_Praça do Japão"
 
 
 def test_calculate_segment_speeds(sample_raw_telemetry, sample_static_data):

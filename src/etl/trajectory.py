@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import PchipInterpolator
 import pm4py
+from src.etl.repository import activity_name_for_stop, strip_activity_name
 
 
 def haversine_vectorized(lat1: Any, lon1: Any, lat2: Any, lon2: Any) -> np.ndarray:
@@ -85,6 +86,68 @@ class TrajectoryReconstructor:
                 df = df[valid_gps].copy()
 
         return df
+
+    @classmethod
+    def _segment_group_trips(
+        cls,
+        group: pd.DataFrame,
+        static_data: Dict[str, pd.DataFrame],
+        reversal_threshold: float = 300.0,
+        gap_minutes: float = 10.0
+    ) -> pd.DataFrame:
+        """
+        Segment one vehicle-day of pings into trips (cases).
+
+        Primary rule: cut on direction inversion reported in SENT or on temporal gaps.
+        Fallback (when SENT is missing or entirely null): cut on significant reversal
+        of curvilinear progress along the route shape.
+        """
+        group = group.sort_values('ts').copy()
+        time_diff = group['ts'].diff().dt.total_seconds() / 60.0
+        has_sent = 'SENT' in group.columns and group['SENT'].notna().any()
+
+        if has_sent:
+            sent_change = (group['SENT'] != group['SENT'].shift(1)) | (time_diff > gap_minutes)
+            group['trip_num'] = sent_change.cumsum()
+            return group
+
+        # Fallback: reversal of curvilinear progress along the shape
+        cut_flags = pd.Series(False, index=group.index)
+        _, _, shape_f = cls.resolve_route_geometry(static_data, direction="VOLTA", trip_sample_df=group)
+        if not shape_f.empty and len(group) > 0:
+            shape_lats = shape_f['LAT'].values
+            shape_lons = shape_f['LON'].values
+            idx = cls.map_gps_to_shape(group['LAT'].values, group['LON'].values, shape_lats, shape_lons)
+            shape_dists = np.zeros(len(shape_lats))
+            if len(shape_lats) > 1:
+                shape_dists[1:] = haversine_vectorized(
+                    shape_lats[:-1], shape_lons[:-1], shape_lats[1:], shape_lons[1:]
+                )
+            s = np.cumsum(shape_dists)[idx]
+            flags = np.zeros(len(s), dtype=bool)
+            # State machine: cut once when progress regresses beyond the threshold,
+            # then re-arm only after progress advances again (prevents cascade cuts).
+            ref = s[0]
+            armed = True
+            for i in range(1, len(s)):
+                if armed:
+                    if s[i] < ref - reversal_threshold:
+                        flags[i] = True
+                        ref = s[i]
+                        armed = False
+                    else:
+                        ref = max(ref, s[i])
+                else:
+                    if s[i] > ref + reversal_threshold:
+                        armed = True
+                        ref = s[i]
+                    else:
+                        ref = min(ref, s[i])
+            cut_flags = pd.Series(flags, index=group.index)
+
+        sent_change = cut_flags | (time_diff > gap_minutes)
+        group['trip_num'] = sent_change.cumsum()
+        return group
 
     @staticmethod
     def map_gps_to_shape(gps_lats: np.ndarray, gps_lons: np.ndarray, shape_lats: np.ndarray, shape_lons: np.ndarray) -> np.ndarray:
@@ -251,7 +314,7 @@ class TrajectoryReconstructor:
                     best_sentido = sent
             sentido_static = best_sentido
         elif trip_sample_df is not None and not trip_sample_df.empty and 'concept:name' in trip_sample_df.columns and len(sentidos) > 1:
-            sample_stop_name = trip_sample_df['concept:name'].iloc[0].replace('PASSAGEM_', '')
+            sample_stop_name = strip_activity_name(trip_sample_df['concept:name'].iloc[0])
             matching_stops = stops_df[stops_df['NOME'] == sample_stop_name]
             if not matching_stops.empty:
                 sentido_static = matching_stops['SENTIDO'].iloc[0]
@@ -462,10 +525,7 @@ class TrajectoryReconstructor:
         all_events = []
 
         for (vehicle_cod, day_str), group in df_clean.groupby(['COD', 'data_str']):
-            group = group.sort_values('ts')
-            group['time_diff'] = group['ts'].diff().dt.total_seconds() / 60.0
-            group['sent_change'] = (group['SENT'] != group['SENT'].shift(1)) | (group['time_diff'] > 10.0)
-            group['trip_num'] = group['sent_change'].cumsum()
+            group = cls._segment_group_trips(group, static_data)
 
             for trip_num, trip_group in group.groupby('trip_num'):
                 if len(trip_group) < 3:
@@ -489,7 +549,11 @@ class TrajectoryReconstructor:
             'timestamp': 'time:timestamp',
             'vehicle': 'org:resource'
         })
-        df_log['concept:name'] = 'PASSAGEM_' + df_log['concept:name'].astype(str)
+        # Canonical activity key by stop identity: PASSAGEM_{SEQ:02d}_{NOME}
+        df_log['concept:name'] = [
+            activity_name_for_stop(seq, name)
+            for seq, name in zip(df_log['stop_seq'], df_log['concept:name'])
+        ]
         df_log['time:timestamp'] = pd.to_datetime(df_log['time:timestamp'])
         df_log = df_log.sort_values(by=['case:concept:name', 'stop_seq'])
 
@@ -542,9 +606,12 @@ class TrajectoryReconstructor:
                 dists = haversine_vectorized(lats[:-1], lons[:-1], lats[1:], lons[1:])
                 dist = float(dists.sum())
 
-            stop_name_1 = f"PASSAGEM_{st1['NOME']}"
-            stop_name_2 = f"PASSAGEM_{st2['NOME']}"
-            cases_passed = df_log_dir[df_log_dir['concept:name'].isin([stop_name_1, stop_name_2])]
+            if 'stop_seq' in df_log_dir.columns and 'SEQ' in st1 and 'SEQ' in st2:
+                cases_passed = df_log_dir[df_log_dir['stop_seq'].isin([int(st1['SEQ']), int(st2['SEQ'])])]
+            else:
+                stop_name_1 = f"PASSAGEM_{st1['NOME']}"
+                stop_name_2 = f"PASSAGEM_{st2['NOME']}"
+                cases_passed = df_log_dir[df_log_dir['concept:name'].isin([stop_name_1, stop_name_2])]
 
             speeds_list = []
             if not cases_passed.empty:

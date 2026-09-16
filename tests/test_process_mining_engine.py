@@ -175,6 +175,55 @@ def test_analyze_schedule_delays(sample_event_log, sample_planned_table, sample_
     assert "status" in result_df.columns
 
 
+def test_analyze_segment_performance_excludes_interpolated():
+    """
+    TDD Spec (F1.3):
+    Segments whose endpoints were fabricated by interpolation must be excluded
+    from timing statistics, while the interpolation ratio is reported per segment.
+    """
+    base_time = datetime(2025, 10, 24, 8, 0, 0)
+    records = []
+    cases = [
+        ("C1", [(1, "P1", False, 0), (2, "P2", False, 10)]),
+        ("C2", [(1, "P1", False, 0), (2, "P2", True, 60)]),
+        ("C3", [(1, "P1", False, 0), (2, "P2", False, 8)]),
+    ]
+    for cid, stops in cases:
+        for seq, name, interp, mins in stops:
+            records.append({
+                "case:concept:name": cid,
+                "concept:name": f"PASSAGEM_{name}",
+                "time:timestamp": base_time + timedelta(minutes=mins),
+                "stop_seq": seq,
+                "org:resource": cid,
+                "interpolated": interp,
+            })
+    df = pd.DataFrame(records)
+    result = ProcessMiningEngine.analyze_segment_performance(df)
+
+    seg = result[result["segment_name"] == "P1 -> P2"]
+    assert not seg.empty
+    # Only the 2 fully observed passages contribute to timing (10 and 8 min)
+    assert seg["total_passages"].iloc[0] == 3
+    assert seg["observed_passages"].iloc[0] == 2
+    assert abs(seg["mean_time_min"].iloc[0] - 9.0) < 0.01
+    assert abs(seg["interp_ratio"].iloc[0] - (1 / 3)) < 0.01
+
+
+def test_analyze_schedule_delays_skips_interpolated_departures(sample_event_log, sample_planned_table, sample_stops):
+    """
+    TDD Spec (F1.3):
+    Departures whose stop-1 event was interpolated (fabricated timestamp) must be
+    excluded from delay computation instead of producing a bogus schedule delay.
+    """
+    df = sample_event_log.copy()
+    df["interpolated"] = False
+    df.loc[df['stop_seq'] == 1, 'interpolated'] = True
+
+    result = ProcessMiningEngine.analyze_schedule_delays(df, sample_planned_table, "2025-10-24", sample_stops)
+    assert result.empty
+
+
 def test_empty_dataframe_handling():
     """Verify that all methods handle empty inputs gracefully."""
     empty_df = pd.DataFrame()

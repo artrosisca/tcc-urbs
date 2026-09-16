@@ -15,7 +15,7 @@ import numpy as np
 import pm4py
 from pm4py.objects.petri_net.obj import PetriNet, Marking
 from pm4py.objects.petri_net.utils import petri_utils
-from src.etl.repository import _fix_encoding
+from src.etl.repository import _fix_encoding, activity_name_for_stop, strip_activity_name
 
 
 def _get_fallback_svg(title: str, message: str, tip: str = "") -> str:
@@ -120,7 +120,7 @@ class ProcessMiningEngine:
         initial_marking[prev_place] = 1
 
         for idx, row in stops.iterrows():
-            act_name = f"PASSAGEM_{row['NOME']}"
+            act_name = activity_name_for_stop(row['SEQ'], row['NOME'])
             transition = PetriNet.Transition(f"trans_{row['SEQ']}", act_name)
             net.transitions.add(transition)
 
@@ -175,7 +175,7 @@ class ProcessMiningEngine:
             sentido_static = None
             if not group.empty and 'NOME' in static_stops_df.columns and 'SENTIDO' in static_stops_df.columns:
                 first_concept = group['concept:name'].iloc[0]
-                sample_stop_name = first_concept.replace('PASSAGEM_', '')
+                sample_stop_name = strip_activity_name(first_concept)
                 matching = static_stops_df[static_stops_df['NOME'] == sample_stop_name]
                 if not matching.empty:
                     sentido_static = matching['SENTIDO'].iloc[0]
@@ -196,6 +196,22 @@ class ProcessMiningEngine:
             if 'NOME' in stops_dir.columns:
                 stops_dir['NOME'] = stops_dir['NOME'].apply(_fix_encoding)
 
+            # Match by stop identity (SEQ) whenever available; fall back to activity names.
+            stops_records = stops_dir.to_dict('records')
+            planned_stops = [activity_name_for_stop(s.get('SEQ'), s.get('NOME')) for s in stops_records]
+            seq_to_nome = {int(s['SEQ']): s.get('NOME') for s in stops_records if pd.notna(s.get('SEQ'))}
+            use_seq = 'stop_seq' in group.columns and len(seq_to_nome) > 0
+
+            # Normalize activity names in the log to the canonical key so token replay
+            # matches the normative net regardless of the naming vintage of the CSV.
+            group = group.copy()
+            if use_seq:
+                group['concept:name'] = [
+                    activity_name_for_stop(seq, seq_to_nome.get(int(seq), strip_activity_name(name)))
+                    if pd.notna(seq) else name
+                    for seq, name in zip(group['stop_seq'], group['concept:name'])
+                ]
+
             # 1. Normative Petri Net & Token Replay
             net, init_m, final_m = cls.create_normative_petri_net(stops_dir)
             log = cls.format_event_log(group)
@@ -214,24 +230,31 @@ class ProcessMiningEngine:
             except Exception as e:
                 pass
 
-            # 2. Heuristic Skipped Stops & Deviations
-            planned_stops = ['PASSAGEM_' + str(n) for n in stops_dir['NOME'].tolist()]
+            # 2. Heuristic Skipped Stops & Deviations (by stop identity)
             deviations = []
             skipped_stops_all = []
 
             for case_id, case_group in group.groupby('case:concept:name'):
                 case_sorted = case_group.sort_values('stop_seq') if 'stop_seq' in case_group.columns else case_group
                 visited = set(case_sorted['concept:name'].tolist())
+                visited_seqs = set(case_sorted['stop_seq'].dropna().astype(int)) if use_seq else set()
 
                 skipped = []
                 interp_count = 0
-                for stop in planned_stops:
-                    stop_rows = case_sorted[case_sorted['concept:name'] == stop]
-                    if stop_rows.empty:
-                        clean_name = stop.replace('PASSAGEM_', '')
+                for s in stops_records:
+                    s_seq = s.get('SEQ')
+                    s_nome = s.get('NOME')
+                    if use_seq:
+                        s_rows = case_sorted[case_sorted['stop_seq'] == int(s_seq)]
+                    else:
+                        s_rows = case_sorted[case_sorted['concept:name'] == activity_name_for_stop(s_seq, s_nome)]
+                        if s_rows.empty:  # legacy name fallback
+                            s_rows = case_sorted[case_sorted['concept:name'] == f"PASSAGEM_{s_nome}"]
+                    if s_rows.empty:
+                        clean_name = str(s_nome)
                         skipped.append(clean_name)
                         skipped_stops_all.append(clean_name)
-                    elif 'interpolated' in stop_rows.columns and stop_rows['interpolated'].iloc[0]:
+                    elif 'interpolated' in s_rows.columns and s_rows['interpolated'].iloc[0]:
                         interp_count += 1
 
                 veh = case_group['org:resource'].iloc[0] if 'org:resource' in case_group.columns else "N/A"
@@ -314,7 +337,16 @@ class ProcessMiningEngine:
         if event_log_df.empty:
             return "<svg></svg>" if as_svg else {"nodes": [], "links": [], "start_activities": [], "end_activities": []}
 
-        log_pm4py = cls.format_event_log(event_log_df)
+        # Exclude fabricated (interpolated) events from performance timing — their
+        # timestamps are synthetic and would corrupt arc durations. Neighbouring
+        # observed stops are linked directly instead.
+        df_perf = event_log_df
+        if 'interpolated' in event_log_df.columns:
+            df_perf = event_log_df[~event_log_df['interpolated'].fillna(False).astype(bool)]
+            if df_perf.empty:
+                df_perf = event_log_df
+
+        log_pm4py = cls.format_event_log(df_perf)
         performance_dfg, start_act, end_act = pm4py.discover_performance_dfg(log_pm4py)
 
         if as_svg:
@@ -373,13 +405,25 @@ class ProcessMiningEngine:
         df['prev_stop'] = df.groupby('case:concept:name')['concept:name'].shift(1)
         df['prev_timestamp'] = df.groupby('case:concept:name')['time:timestamp'].shift(1)
 
+        # Interpolation flags on both endpoints (fabricated timestamps must not feed timing)
+        if 'interpolated' in df.columns:
+            df['interp_curr'] = df['interpolated'].fillna(False).astype(bool)
+        else:
+            df['interp_curr'] = False
+        df['interp_prev'] = df.groupby('case:concept:name')['interp_curr'].shift(1)
+
         df_segments = df.dropna(subset=['prev_stop']).copy()
         df_segments['duration_sec'] = (pd.to_datetime(df_segments['time:timestamp']) - pd.to_datetime(df_segments['prev_timestamp'])).dt.total_seconds()
         df_segments['duration_min'] = df_segments['duration_sec'] / 60.0
         df_segments['segment_name'] = df_segments['prev_stop'].str.replace('PASSAGEM_', '') + " -> " + df_segments['concept:name'].str.replace('PASSAGEM_', '')
+        df_segments['both_observed'] = ~(df_segments['interp_curr'].fillna(False).astype(bool) | df_segments['interp_prev'].fillna(False).astype(bool))
 
-        segment_stats = df_segments.groupby('segment_name').agg(
-            total_passages=('case:concept:name', 'count'),
+        df_observed = df_segments[df_segments['both_observed']].copy()
+        df_observed['observed_passages'] = 1
+        df_segments['interp_instance'] = (~df_segments['both_observed']).astype(int)
+
+        stats_observed = df_observed.groupby('segment_name').agg(
+            observed_passages=('observed_passages', 'sum'),
             mean_time_min=('duration_min', 'mean'),
             median_time_min=('duration_min', 'median'),
             std_time_min=('duration_min', 'std'),
@@ -387,6 +431,12 @@ class ProcessMiningEngine:
             min_time_min=('duration_min', 'min')
         ).reset_index()
 
+        stats_all = df_segments.groupby('segment_name').agg(
+            total_passages=('case:concept:name', 'count'),
+            interp_ratio=('interp_instance', 'mean')
+        ).reset_index()
+
+        segment_stats = stats_all.merge(stats_observed, on='segment_name', how='left')
         return segment_stats.sort_values(by='mean_time_min', ascending=False)
 
     @staticmethod
@@ -410,6 +460,10 @@ class ProcessMiningEngine:
 
         departures = event_log_df[event_log_df['stop_seq'] == 1].copy() if 'stop_seq' in event_log_df.columns else event_log_df.groupby('case:concept:name').first().reset_index()
 
+        # Exclude fabricated (interpolated) departures — fake timestamps cannot anchor delays
+        if 'interpolated' in departures.columns:
+            departures = departures[~departures['interpolated'].fillna(False).astype(bool)]
+
         control_point_mapping: Dict[str, Any] = {}
         control_points = planned_day['PONTO'].unique() if 'PONTO' in planned_day.columns else []
 
@@ -423,7 +477,7 @@ class ProcessMiningEngine:
                 group = event_log_df[event_log_df['gps_direction'] == gps_dir]
                 if not group.empty:
                     first_concept = group['concept:name'].iloc[0]
-                    sample_stop_name = first_concept.replace('PASSAGEM_', '')
+                    sample_stop_name = strip_activity_name(first_concept)
                     matching = static_stops_df[static_stops_df['NOME'] == sample_stop_name]
                     if not matching.empty:
                         sentido_mapping[gps_dir] = matching['SENTIDO'].iloc[0]

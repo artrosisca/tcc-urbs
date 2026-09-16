@@ -52,7 +52,7 @@ Orde da marcha recomendada: **F0 (contrato textual) → F1 (código) → F2 (UI)
 | F1.4 | **Sweep σz/β do HMM** como anexo metodológico: grid 10–50m × 20–100m e estabilidade de gargalos | Notebooks/experiment; relatório em anexo | ρ/ICC por combinação, documentado |
 | F1.5 | ✅ **CONCLUÍDO** — **Corrigir escrita do CSV** (mojibake `SÃ£o`/`SÃ­tio`): `_fix_encoding` aplicado em `concept:name` antes de `to_csv` em `reconstruct_event_log`. Teste `test_reconstruct_event_log_writes_clean_utf8` verde; suíte: 87/87. |
 | F1.6 | ✅ **CONCLUÍDO** — **Taxa de Censura Operacional**: parâmetro `return_stats: bool = False` em `reconstruct_event_log`, contadores de descarte (<3 pings e >90% interp.) e sidecar JSON. Teste `test_reconstruct_event_log_operational_censorship_stats` verde; suíte: 88/88. |
-| F1.7 | **Revisar filtro de outliers 500m**: substituir "distância à parada" por "distância ao shape" (evita descartar pings legítimos em trechos esparsos e censurar desvios reais) | `clean_telemetry` (`trajectory.py:71-86`) | Teste unitário com paradas esparsas >1km; pings do meio do trecho não são descartados |
+| F1.7 | ✅ **CONCLUÍDO** — **Revisar filtro de outliers 500m**: substituir "distância à parada" por "distância ao shape". Parâmetros `static_shape_df` e `shape_outlier_threshold` adicionados em `clean_telemetry`. Teste unitário `test_clean_telemetry_filters_by_shape_distance` verde; suíte: 89/89. |
 
 ---
 

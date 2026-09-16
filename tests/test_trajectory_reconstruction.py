@@ -305,3 +305,65 @@ def test_reconstruct_event_log_writes_clean_utf8(tmp_path, sample_raw_telemetry)
     df_written = pd.read_csv(csv_files[0])
     assert not df_written['concept:name'].str.contains('Ã').any()
 
+
+def test_reconstruct_event_log_operational_censorship_stats(tmp_path, sample_static_data):
+    """
+    TDD Spec (F1.6):
+    Operational censorship rate and counters must be recorded and reported:
+    1. Trips with < 3 pings are dropped for insufficient pings.
+    2. Trips with > 90% interpolated events are dropped for high interpolation.
+    3. Valid trips are retained.
+    When return_stats=True, returns (df_log, stats_dict).
+    When output_dir is given, saves event_log_{line}_{tag}_stats.json.
+    """
+    import json
+    base_time = datetime(2025, 10, 24, 8, 0, 0)
+    stops_df = sample_static_data["pontos"]
+
+    # Trip 1 (trip_num 0): 2 pings (len < 3 -> dropped_insufficient_pings)
+    v1 = [
+        {"COD": "VEH01", "CODIGOLINHA": "541", "LAT": stops_df.iloc[0]["LAT"], "LON": stops_df.iloc[0]["LON"], "ts": base_time, "SENT": "VOLTA", "TABELA": "1"},
+        {"COD": "VEH01", "CODIGOLINHA": "541", "LAT": stops_df.iloc[1]["LAT"], "LON": stops_df.iloc[1]["LON"], "ts": base_time + timedelta(seconds=20), "SENT": "VOLTA", "TABELA": "1"},
+    ]
+
+    # Trip 2 (trip_num 1): 3 pings situated ~122m away from each stop (min_dist ~122m > 100m, but < 150m threshold)
+    # This causes all matched stops to have interpolated=True (mean > 0.90 -> dropped_high_interpolation)
+    t2_base = base_time + timedelta(minutes=20)
+    v2 = [
+        {"COD": "VEH01", "CODIGOLINHA": "541", "LAT": stops_df.iloc[i]["LAT"] + 0.0011, "LON": stops_df.iloc[i]["LON"], "ts": t2_base + timedelta(minutes=i * 2), "SENT": "VOLTA", "TABELA": "1"}
+        for i in range(len(stops_df))
+    ]
+
+    # Trip 3 (trip_num 2): 3 pings directly at the stops (min_dist < 5m <= 100m -> interpolated=False -> kept)
+    t3_base = base_time + timedelta(minutes=50)
+    v3 = [
+        {"COD": "VEH01", "CODIGOLINHA": "541", "LAT": stops_df.iloc[i]["LAT"], "LON": stops_df.iloc[i]["LON"], "ts": t3_base + timedelta(minutes=i * 2), "SENT": "VOLTA", "TABELA": "1"}
+        for i in range(len(stops_df))
+    ]
+
+    raw_df = pd.DataFrame(v1 + v2 + v3)
+
+    df_log, stats = TrajectoryReconstructor.reconstruct_event_log(
+        raw_df, sample_static_data, line_code="541",
+        output_dir=str(tmp_path),
+        return_stats=True
+    )
+
+    assert isinstance(stats, dict)
+    assert stats["total_candidate_trips"] == 3
+    assert stats["dropped_insufficient_pings"] == 1
+    assert stats["dropped_high_interpolation"] == 1
+    assert stats["kept_trips"] == 1
+    assert abs(stats["censored_trip_rate"] - (2 / 3)) < 0.01
+
+    # Check sidecar JSON
+    stats_files = list(tmp_path.glob("event_log_541_*_stats.json"))
+    assert len(stats_files) == 1
+    with open(stats_files[0], 'r', encoding='utf-8') as f:
+        saved_stats = json.load(f)
+    assert saved_stats["total_candidate_trips"] == 3
+    assert saved_stats["kept_trips"] == 1
+    assert saved_stats["dropped_insufficient_pings"] == 1
+    assert saved_stats["dropped_high_interpolation"] == 1
+
+

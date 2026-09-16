@@ -6,6 +6,7 @@ monotonic PCHIP spline interpolation, spatial shape resolution, and event log bu
 """
 
 import os
+import json
 from typing import Dict, Any, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
@@ -509,39 +510,65 @@ class TrajectoryReconstructor:
         static_data: Dict[str, pd.DataFrame],
         line_code: str,
         output_dir: Optional[str] = None,
-        date_range_tag: Optional[str] = None
-    ) -> pd.DataFrame:
+        date_range_tag: Optional[str] = None,
+        return_stats: bool = False
+    ) -> Union[pd.DataFrame, Tuple[pd.DataFrame, Dict[str, Any]]]:
         """
         Reconstruct a complete Process Mining event log from raw telemetry and static schedule data.
         """
+        empty_stats = {
+            "total_candidate_trips": 0,
+            "kept_trips": 0,
+            "dropped_insufficient_pings": 0,
+            "dropped_high_interpolation": 0,
+            "censored_trip_rate": 0.0
+        }
+
         if realtime_df.empty or static_data.get('pontos', pd.DataFrame()).empty:
-            return pd.DataFrame()
+            return (pd.DataFrame(), empty_stats) if return_stats else pd.DataFrame()
 
         df_clean = cls.clean_telemetry(realtime_df, static_data.get('pontos'))
         if df_clean.empty:
-            return pd.DataFrame()
+            return (pd.DataFrame(), empty_stats) if return_stats else pd.DataFrame()
 
         df_clean['data_str'] = df_clean['ts'].dt.strftime('%Y-%m-%d')
         all_events = []
+
+        stats = {
+            "total_candidate_trips": 0,
+            "kept_trips": 0,
+            "dropped_insufficient_pings": 0,
+            "dropped_high_interpolation": 0,
+            "censored_trip_rate": 0.0
+        }
 
         for (vehicle_cod, day_str), group in df_clean.groupby(['COD', 'data_str']):
             group = cls._segment_group_trips(group, static_data)
 
             for trip_num, trip_group in group.groupby('trip_num'):
+                stats["total_candidate_trips"] += 1
+
                 if len(trip_group) < 3:
+                    stats["dropped_insufficient_pings"] += 1
                     continue
 
                 trip_events = cls.match_trip(trip_group, static_data, line_code)
                 if not trip_events.empty:
                     if trip_events['interpolated'].mean() > 0.90:
+                        stats["dropped_high_interpolation"] += 1
                         continue
                     tab = trip_group['TABELA'].iloc[0] if 'TABELA' in trip_group else "1"
                     case_id = f"{vehicle_cod}_{line_code}_{tab}_{day_str}_V{trip_num}"
                     trip_events['case:concept:name'] = case_id
                     all_events.append(trip_events)
+                    stats["kept_trips"] += 1
+
+        total_cand = stats["total_candidate_trips"]
+        kept = stats["kept_trips"]
+        stats["censored_trip_rate"] = float((total_cand - kept) / total_cand) if total_cand > 0 else 0.0
 
         if not all_events:
-            return pd.DataFrame()
+            return (pd.DataFrame(), stats) if return_stats else pd.DataFrame()
 
         df_log = pd.concat(all_events, ignore_index=True)
         df_log = df_log.rename(columns={
@@ -569,6 +596,13 @@ class TrajectoryReconstructor:
             csv_path = os.path.join(output_dir, f"event_log_{line_code}_{tag}.csv")
             df_log.to_csv(csv_path, index=False, encoding='utf-8')
 
+            stats_path = os.path.join(output_dir, f"event_log_{line_code}_{tag}_stats.json")
+            try:
+                with open(stats_path, 'w', encoding='utf-8') as f:
+                    json.dump(stats, f, indent=2)
+            except Exception:
+                pass
+
             xes_path = os.path.join(output_dir, f"event_log_{line_code}_{tag}.xes")
             try:
                 log_pm4py = pm4py.format_dataframe(df_log, case_id='case:concept:name', activity_key='concept:name', timestamp_key='time:timestamp')
@@ -576,6 +610,8 @@ class TrajectoryReconstructor:
             except Exception:
                 pass
 
+        if return_stats:
+            return df_log, stats
         return df_log
 
     @staticmethod

@@ -272,7 +272,7 @@ def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VO
             shape_coords = list(zip(shape_filtered['LAT'].tolist(), shape_filtered['LON'].tolist()))
             
         segments = TrajectoryReconstructor.calculate_segment_speeds(df_log_dir, shape_filtered, stops_filtered)
-        replay_trips = TrajectoryReconstructor.build_replay_trips(df_log_dir, stops_filtered)
+        replay_trips = TrajectoryReconstructor.build_replay_trips(df_log_dir, stops_filtered, shape_filtered)
         
         stops_list = []
         for idx, stop in stops_filtered.iterrows():

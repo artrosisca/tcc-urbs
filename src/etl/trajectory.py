@@ -692,17 +692,131 @@ class TrajectoryReconstructor:
 
         return segments
 
+
     @staticmethod
     def build_replay_trips(
-        df_log_dir: pd.DataFrame,
-        stops_filtered: pd.DataFrame
-    ) -> List[Dict[str, Any]]:
+        df_log_dir,
+        stops_filtered,
+        shape_dir=None
+    ):
         """
-        Build vehicle trajectory timestamp replay points for geospatial frontend animation.
+        Build vehicle trajectory timestamp replay points for geospatial frontend animation,
+        using Map Matching to interpolate timestamps along the physical road shape.
         """
+        import numpy as np
+        import pandas as pd
+        from .trajectory import TrajectoryReconstructor, haversine_vectorized
+
         replay_trips = []
         if df_log_dir.empty or stops_filtered.empty:
             return replay_trips
+
+        use_shape = shape_dir is not None and not shape_dir.empty
+
+        shape_lats, shape_lons, shape_cum_dists = None, None, None
+        stop_shape_idxs = {}
+
+        if use_shape:
+            shape_lats = shape_dir['LAT'].astype(float).values
+            shape_lons = shape_dir['LON'].astype(float).values
+            
+            # calculate cumulative distances
+            shape_cum_dists = np.zeros(len(shape_lats))
+            if len(shape_lats) > 1:
+                dists = haversine_vectorized(shape_lats[:-1], shape_lons[:-1], shape_lats[1:], shape_lons[1:])
+                shape_cum_dists[1:] = np.cumsum(dists)
+
+            # Map stops to shape indices
+            for _, row in stops_filtered.iterrows():
+                dists = haversine_vectorized(np.full_like(shape_lats, row['LAT']), np.full_like(shape_lons, row['LON']), shape_lats, shape_lons)
+                if len(dists) > 0:
+                    stop_shape_idxs[row['SEQ']] = np.argmin(dists)
+
+        for cid in df_log_dir['case:concept:name'].unique():
+            c_events = df_log_dir[df_log_dir['case:concept:name'] == cid].sort_values('stop_seq')
+            c_merged = pd.merge(
+                c_events[['stop_seq', 'time:timestamp']],
+                stops_filtered[['SEQ', 'NOME', 'LAT', 'LON']],
+                left_on='stop_seq',
+                right_on='SEQ',
+                how='inner'
+            ).sort_values('stop_seq')
+
+            path_pts = []
+            
+            if not use_shape:
+                for _, row in c_merged.iterrows():
+                    ts_str = row['time:timestamp'].isoformat() if hasattr(row['time:timestamp'], "isoformat") else str(row['time:timestamp'])
+                    path_pts.append({
+                        "time": ts_str,
+                        "lat": float(row['LAT']),
+                        "lon": float(row['LON']),
+                        "stop_name": str(row['NOME'])
+                    })
+            else:
+                # Interpolate along the shape!
+                for i in range(len(c_merged) - 1):
+                    row1 = c_merged.iloc[i]
+                    row2 = c_merged.iloc[i+1]
+                    
+                    seq1, seq2 = row1['SEQ'], row2['SEQ']
+                    idx1 = stop_shape_idxs.get(seq1, 0)
+                    idx2 = stop_shape_idxs.get(seq2, len(shape_lats)-1)
+                    
+                    t1 = pd.to_datetime(row1['time:timestamp']).timestamp()
+                    t2 = pd.to_datetime(row2['time:timestamp']).timestamp()
+                    
+                    # Ensure indices are in order (sometimes stops might be mapped slightly backwards due to noise)
+                    if idx1 > idx2:
+                        idx1, idx2 = idx2, idx1
+                        
+                    dist1 = shape_cum_dists[idx1]
+                    dist2 = shape_cum_dists[idx2]
+                    
+                    # Add point 1
+                    path_pts.append({
+                        "time": pd.to_datetime(t1, unit='s').isoformat(),
+                        "lat": float(shape_lats[idx1]),
+                        "lon": float(shape_lons[idx1]),
+                        "stop_name": str(row1['NOME'])
+                    })
+                    
+                    # Add intermediate shape points
+                    if idx2 > idx1 + 1:
+                        for j in range(idx1 + 1, idx2):
+                            dist_j = shape_cum_dists[j]
+                            # linear interpolation based on distance
+                            fraction = (dist_j - dist1) / (dist2 - dist1) if dist2 > dist1 else 0
+                            tj = t1 + fraction * (t2 - t1)
+                            path_pts.append({
+                                "time": pd.to_datetime(tj, unit='s').isoformat(),
+                                "lat": float(shape_lats[j]),
+                                "lon": float(shape_lons[j])
+                            })
+                            
+                # Add the very last point
+                if len(c_merged) > 0:
+                    last_row = c_merged.iloc[-1]
+                    last_seq = last_row['SEQ']
+                    last_idx = stop_shape_idxs.get(last_seq, 0)
+                    t_last = pd.to_datetime(last_row['time:timestamp']).timestamp()
+                    path_pts.append({
+                        "time": pd.to_datetime(t_last, unit='s').isoformat(),
+                        "lat": float(shape_lats[last_idx]),
+                        "lon": float(shape_lons[last_idx]),
+                        "stop_name": str(last_row['NOME'])
+                    })
+
+            if len(path_pts) > 1:
+                veh = str(c_events['org:resource'].iloc[0]) if 'org:resource' in c_events else "N/A"
+                replay_trips.append({
+                    "case_id": cid,
+                    "vehicle": veh,
+                    "path": path_pts
+                })
+
+        return replay_trips
+
 
         for cid in df_log_dir['case:concept:name'].unique():
             c_events = df_log_dir[df_log_dir['case:concept:name'] == cid].sort_values('stop_seq')

@@ -51,7 +51,7 @@ Orde da marcha recomendada: **F0 (contrato textual) → F1 (código) → F2 (UI)
 | F1.3 | ✅ **CONCLUÍDO** — **`interpolated` propagado ao PM:** `analyze_segment_performance` exclui segmentos com endpoints fabricados e reporta `interp_ratio`/`observed_passages`; `analyze_performance` (DFG PM4Py) filtra eventos fabricados; `analyze_schedule_delays` exclui partidas fabricadas. **Efeito:** arco crítico Regime B passou de 5,23 min (n=611 contam.) para 7,12 min em n=186 observados (69,6% interp) — Cap. 4 atualizado. Suíte: 86/86. |
 | F1.4 | **Sweep σz/β do HMM** como anexo metodológico: grid 10–50m × 20–100m e estabilidade de gargalos | Notebooks/experiment; relatório em anexo | ρ/ICC por combinação, documentado |
 | F1.5 | ✅ **CONCLUÍDO** — **Corrigir escrita do CSV** (mojibake `SÃ£o`/`SÃ­tio`): `_fix_encoding` aplicado em `concept:name` antes de `to_csv` em `reconstruct_event_log`. Teste `test_reconstruct_event_log_writes_clean_utf8` verde; suíte: 87/87. |
-| F1.6 | **Taxa de Censura Operacional** reportada (viagens descartadas >90% interpoladas) — já pontuada pela banca | `reconstruct_event_log` | CSV/metadado com percentual descartado por linha/faixa horária |
+| F1.6 | ✅ **CONCLUÍDO** — **Taxa de Censura Operacional**: parâmetro `return_stats: bool = False` em `reconstruct_event_log`, contadores de descarte (<3 pings e >90% interp.) e sidecar JSON. Teste `test_reconstruct_event_log_operational_censorship_stats` verde; suíte: 88/88. |
 | F1.7 | **Revisar filtro de outliers 500m**: substituir "distância à parada" por "distância ao shape" (evita descartar pings legítimos em trechos esparsos e censurar desvios reais) | `clean_telemetry` (`trajectory.py:71-86`) | Teste unitário com paradas esparsas >1km; pings do meio do trecho não são descartados |
 
 ---

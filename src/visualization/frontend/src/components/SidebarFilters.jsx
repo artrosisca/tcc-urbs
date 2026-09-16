@@ -133,25 +133,38 @@ export default function SidebarFilters({
 
       {/* Config Form */}
       <div className="p-5 flex-1 overflow-y-auto space-y-5">
-        {/* Regime Selection */}
+        {/* Bus Line Selector */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Regime de Coleta</label>
-          <div className="grid grid-cols-2 gap-2">
-            {Object.keys(regimeConfig).map(regName => (
-              <button
-                key={regName}
-                type="button"
-                onClick={() => handleRegimeChange(regName)}
-                className={`py-2 px-3 text-xs font-medium rounded-lg border text-center transition-all ${
-                  currentRegimeKey === regName
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                {regName}
-              </button>
-            ))}
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Linha de Ônibus</label>
+            <span className="text-[10px] font-bold text-slate-400">
+              {rawLines.length + minedLines.length} linhas disponíveis
+            </span>
           </div>
+          <select
+            value={filters.line}
+            onChange={(e) => setFilters(prev => ({ ...prev, line: e.target.value }))}
+            className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs text-slate-700 font-medium focus:border-slate-400 outline-none cursor-pointer"
+          >
+            {minedLines.length > 0 && (
+              <optgroup label={`⭐ Linhas Mineradas / Prontas (${minedLines.length})`}>
+                {minedLines.map(line => (
+                  <option key={line} value={line}>
+                    Linha {line} (Log de Eventos Pronto)
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {rawLines.length > 0 && (
+              <optgroup label={`📡 Dados Brutos de GPS (${rawLines.length} linhas)`}>
+                {rawLines.map(line => (
+                  <option key={line} value={line}>
+                    Linha {line} (Bruto — requer mineração)
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
         </div>
 
         {/* Period Preset Selection */}
@@ -237,40 +250,6 @@ export default function SidebarFilters({
               </div>
             </div>
           )}
-        </div>
-
-        {/* Bus Line Selector */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Linha de Ônibus</label>
-            <span className="text-[10px] font-bold text-slate-400">
-              {rawLines.length + minedLines.length} linhas disponíveis
-            </span>
-          </div>
-          <select
-            value={filters.line}
-            onChange={(e) => setFilters(prev => ({ ...prev, line: e.target.value }))}
-            className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs text-slate-700 font-medium focus:border-slate-400 outline-none cursor-pointer"
-          >
-            {minedLines.length > 0 && (
-              <optgroup label={`⭐ Linhas Mineradas / Prontas (${minedLines.length})`}>
-                {minedLines.map(line => (
-                  <option key={line} value={line}>
-                    Linha {line} (Log de Eventos Pronto)
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {rawLines.length > 0 && (
-              <optgroup label={`📡 Dados Brutos de GPS (${rawLines.length} linhas)`}>
-                {rawLines.map(line => (
-                  <option key={line} value={line}>
-                    Linha {line} (Bruto — requer mineração)
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
         </div>
 
         {/* Direction Toggle */}
@@ -365,33 +344,67 @@ export default function SidebarFilters({
         </button>
       </div>
 
-      {/* SSE Log Box */}
-      <div className="p-4 bg-slate-950 border-t border-slate-800 h-44 flex flex-col font-mono text-[10px] text-slate-300">
-        <div className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-slate-500 mb-2 tracking-wider">
-          <Terminal className="h-3 w-3" />
-          <span>Console de Execução</span>
+      {/* Advanced Settings & Logs details */}
+      <details className="group bg-slate-950 border-t border-slate-800" open={isProcessing}>
+        <summary className="p-3 text-[10px] uppercase font-bold text-slate-500 tracking-wider cursor-pointer hover:text-slate-300 transition-colors list-none flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Settings className="h-3.5 w-3.5" />
+            <span>Configurações TCC / Logs</span>
+          </div>
+          <span className="group-open:rotate-180 transition-transform">▼</span>
+        </summary>
+        
+        <div className="px-4 pb-4 space-y-4">
+          {/* Regime Settings */}
+          <div>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">Regime de Coleta</label>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.keys(regimeConfig).map(regName => (
+                <button
+                  key={regName}
+                  type="button"
+                  onClick={() => handleRegimeChange(regName)}
+                  className={`py-1.5 px-2 text-[10px] font-medium rounded border text-center transition-all ${
+                    currentRegimeKey === regName
+                      ? 'bg-blue-900 border-blue-700 text-white'
+                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
+                  }`}
+                >
+                  {regName}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* SSE Logs */}
+          <div className="flex flex-col font-mono text-[10px] text-slate-300 h-32">
+            <div className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-slate-500 mb-1 tracking-wider">
+              <Terminal className="h-3 w-3" />
+              <span>Console de Execução</span>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-1 p-2 bg-slate-900 border border-slate-800 rounded-md">
+              {processingLogs.length === 0 ? (
+                <span className="text-slate-600">Aguardando execução...</span>
+              ) : (
+                processingLogs.map((log, idx) => (
+                  <div
+                    key={idx}
+                    className={
+                      log.includes('Concluído') || log.includes('salvo') || log.includes('sucesso')
+                        ? 'text-emerald-400'
+                        : log.includes('Erro')
+                        ? 'text-rose-400'
+                        : 'text-slate-300'
+                    }
+                  >
+                    &gt; {log}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto space-y-1 p-2 bg-slate-900 border border-slate-800 rounded-md">
-          {processingLogs.length === 0 ? (
-            <span className="text-slate-600">Aguardando execução...</span>
-          ) : (
-            processingLogs.map((log, idx) => (
-              <div
-                key={idx}
-                className={
-                  log.includes('Concluído') || log.includes('salvo') || log.includes('sucesso')
-                    ? 'text-emerald-400'
-                    : log.includes('Erro')
-                    ? 'text-rose-400'
-                    : 'text-slate-300'
-                }
-              >
-                &gt; {log}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      </details>
     </aside>
   );
 }

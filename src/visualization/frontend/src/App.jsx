@@ -39,7 +39,7 @@ export default function App() {
     try {
       const [mapRes, petriRes, confRes, perfRes] = await Promise.all([
         fetch(`/api/map-data?${query}`),
-        fetch(`/api/discovery-json?${query}`),
+        fetch(`/api/discovery?${query}`),
         fetch(`/api/conformance?${query}`),
         fetch(`/api/performance-json?${query}`)
       ]);
@@ -51,7 +51,7 @@ export default function App() {
       }
 
       if (petriRes.ok) {
-        setPetriNetData(await petriRes.json());
+        setPetriNetData(await petriRes.text());
       } else {
         setPetriNetData(null);
       }

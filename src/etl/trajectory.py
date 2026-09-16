@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import PchipInterpolator
 import pm4py
-from src.etl.repository import activity_name_for_stop, strip_activity_name
+from src.etl.repository import activity_name_for_stop, strip_activity_name, _fix_encoding
 
 
 def haversine_vectorized(lat1: Any, lon1: Any, lat2: Any, lon2: Any) -> np.ndarray:
@@ -560,6 +560,11 @@ class TrajectoryReconstructor:
         # Save outputs if directory is given
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
+            # F1.5: ensure clean UTF-8 names on write (repair double-encoded mojibake)
+            for col in ['concept:name']:
+                if col in df_log.columns:
+                    df_log[col] = df_log[col].apply(_fix_encoding)
+
             tag = date_range_tag or df_clean['data_str'].iloc[0]
             csv_path = os.path.join(output_dir, f"event_log_{line_code}_{tag}.csv")
             df_log.to_csv(csv_path, index=False, encoding='utf-8')

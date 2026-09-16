@@ -272,3 +272,36 @@ def test_stop_shape_idx_does_not_collapse_in_circular_route():
     # Terminal A Retorno is at Pt 0 (LAT: -25.430), so its true nearest shape_idx is 0.
     # np.maximum.accumulate wrongly forced indices to [0, 2, 2].
     assert indices == [0, 2, 0], f"Expected [0, 2, 0], but got {indices} (collapsed by maximum.accumulate)"
+
+
+def test_reconstruct_event_log_writes_clean_utf8(tmp_path, sample_raw_telemetry):
+    """
+    TDD Spec (F1.5):
+    Even when static stop names arrive double-encoded (mojibake), the CSV written
+    by reconstruct_event_log must contain clean UTF-8 names (no 'Ã' artifacts).
+    """
+    stops_df = pd.DataFrame([
+        {"SEQ": 1, "NUM": "101", "NOME": "Terminal SÃ­tio Cercado", "SENTIDO": "VOLTA", "LAT": -25.5350, "LON": -49.2710},
+        {"SEQ": 2, "NUM": "102", "NOME": "PraÃ§a do JapÃ£o", "SENTIDO": "VOLTA", "LAT": -25.4420, "LON": -49.2880},
+        {"SEQ": 3, "NUM": "103", "NOME": "PraÃ§a Rui Barbosa", "SENTIDO": "VOLTA", "LAT": -25.4350, "LON": -49.2730},
+    ])
+    shape_df = pd.DataFrame([
+        {"SHP": "SHP_1", "LAT": -25.5350, "LON": -49.2710},
+        {"SHP": "SHP_1", "LAT": -25.4900, "LON": -49.2800},
+        {"SHP": "SHP_1", "LAT": -25.4420, "LON": -49.2880},
+        {"SHP": "SHP_1", "LAT": -25.4380, "LON": -49.2800},
+        {"SHP": "SHP_1", "LAT": -25.4350, "LON": -49.2730},
+    ])
+    static_data = {"pontos": stops_df, "shape": shape_df, "tabela": pd.DataFrame()}
+
+    df_log = TrajectoryReconstructor.reconstruct_event_log(
+        sample_raw_telemetry, static_data, line_code="541",
+        output_dir=str(tmp_path)
+    )
+    assert not df_log.empty
+
+    csv_files = list(tmp_path.glob("event_log_541_*.csv"))
+    assert csv_files, "CSV was not written"
+    df_written = pd.read_csv(csv_files[0])
+    assert not df_written['concept:name'].str.contains('Ã').any()
+

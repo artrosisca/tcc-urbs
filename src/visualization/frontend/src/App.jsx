@@ -19,6 +19,7 @@ export default function App() {
   });
 
    const [activeTab, setActiveTab] = useState('map');
+  const [activeTripId, setActiveTripId] = useState(null);
   const [processingLogs, setProcessingLogs] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLogicalMode, setIsLogicalMode] = useState(true);
@@ -254,6 +255,8 @@ export default function App() {
               setIsLogicalMode={setIsLogicalMode}
               isLoading={isLoading}
               filters={filters}
+              activeTripId={activeTripId}
+              onClearTrip={() => setActiveTripId(null)}
             />
           )}
 
@@ -262,7 +265,7 @@ export default function App() {
           )}
 
           {activeTab === 'conformance' && (
-            <ConformanceInspector conformanceData={conformanceData} />
+            <ConformanceInspector conformanceData={conformanceData} onTripSelect={(id) => { setActiveTripId(id); setActiveTab('map'); }} />
           )}
 
           {activeTab === 'performance' && (

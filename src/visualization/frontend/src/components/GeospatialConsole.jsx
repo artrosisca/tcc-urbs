@@ -28,7 +28,7 @@ function formatDisplayPeriod(startDate, endDate) {
   return `${toBr(startDate)} a ${toBr(endDate)}`;
 }
 
-export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogicalMode, isLoading, filters }) {
+export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogicalMode, isLoading, filters, activeTripId, onClearTrip }) {
   const [viewState, setViewState] = useState({
     longitude: -49.2768, // Curitiba
     latitude: -25.4311,

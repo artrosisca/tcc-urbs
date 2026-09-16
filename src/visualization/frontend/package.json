@@ -15,7 +15,8 @@
     "deck.gl": "^9.3.4",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "svg-pan-zoom": "^3.6.2"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.1",

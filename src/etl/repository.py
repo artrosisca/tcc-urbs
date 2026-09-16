@@ -45,6 +45,23 @@ def _fix_encoding(text: Any) -> Any:
     return text
 
 
+def activity_name_for_stop(seq: Any, nome: Any) -> str:
+    """Canonical activity key: 'PASSAGEM_{SEQ:02d}_{NOME}'. Falls back to name-only."""
+    try:
+        return f"PASSAGEM_{int(seq):02d}_{nome}"
+    except (ValueError, TypeError):
+        return f"PASSAGEM_{nome}"
+
+
+def strip_activity_name(name: Any) -> Any:
+    """Strip the PM prefix and optional seq prefix: 'PASSAGEM_03_Rua X' -> 'Rua X'."""
+    if not isinstance(name, str):
+        return name
+    if name.startswith('PASSAGEM_'):
+        name = name[len('PASSAGEM_'):]
+    return re.sub(r'^\d{1,3}_', '', name)
+
+
 class TelemetryStorageAdapter(ABC):
     """Abstract storage adapter interface at the repository seam."""
 

@@ -468,7 +468,7 @@ def get_dashboard_overview(line: str, start_date: str, end_date: str, direction:
         map_data = get_map_data(line, start_date, end_date, direction, start_hour, end_hour)
         discovery_svg = get_discovery(line, start_date, end_date, direction, start_hour, end_hour).body.decode("utf-8")
         conformance = get_conformance(line, start_date, end_date, direction, start_hour, end_hour)
-        performance = get_performance_json(line, start_date, end_date, direction, start_hour, end_hour)
+        performance = get_performance(line, start_date, end_date, direction, start_hour, end_hour).body.decode("utf-8")
 
         result = {
             "map_data": map_data,

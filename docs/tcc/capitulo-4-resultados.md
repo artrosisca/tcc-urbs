@@ -2,16 +2,18 @@
 
 > Rascunho para revisão com números extraídos do repositório em 2026-09-11 (`/tmp/opencode/tcc_metrics.py` usando `src/etl/repository.py` e `src/mining/engine.py`).
 
-## 4.1 Descrição dos Cenários de Análise
+## 4.1 Descrição dos Cenários de Análise e Taxa de Censura Operacional
 
-A avaliação empregou a linha 541 (Bairro Novo A → Centro) da URBS em dois regimes: Regime A (24 a 30/10/2025, ~120s) e Regime B (02 a 08/12/2025, ~20s). O volume bruto do Regime A soma ~5,08 milhões de registros (~0,53M–1,0M/dia). Para o Regime B, utilizou-se o event log processado completo (`data/dados_processados/event_log_541_2025-12-02_2025-12-08{.csv,.xes}`).
+A avaliação empregou a linha 541 (Bairro Novo A → Centro) da URBS em dois regimes: Regime A (24 a 30/10/2025, ~120s) e Regime B (02 a 08/12/2025, ~20s). O volume bruto do Regime A soma ~5,08 milhões de registros (~0,53M–1,0M/dia). Para o Regime B, utilizou-se o event log processado completo (`data/dados_processados/event_log_541_2025-12-02_2025-12-08{.csv,.xes}`). 
 
-| Regime | Eventos | Viagens (cases) | Veículos | Pings IDA / VOLTA | % eventos interpolados |
-| :--- | ---: | ---: | ---: | ---: | ---: |
-| A (120s) | 5.092 | 956 | 26 | 2.821 / 2.271 | 23,1% |
-| B (20s) | 16.822 | 1.200 | 30 | 9.360 / 7.462 | 47,8% |
+Graças à introdução do filtro geoespacial baseado no traçado (Shape) do ônibus (e não estritamente nos pontos de parada), pings ao longo de vias expressas esparsas não são mais erroneamente descartados como anomalias. 
 
-> O percentual de eventos marcados como `interpolated=True` (distância mínima > 100m) é exposto como **metadado de qualidade**. A leitura operacional dos resultados considera essa incerteza.
+| Regime | Eventos | Viagens (cases) | Veículos | Pings IDA / VOLTA | % eventos interpolados | Taxa de Censura |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| A (120s) | 5.092 | 956 | 26 | 2.821 / 2.271 | 23,1% | ~20,3% |
+| B (20s) | 16.822 | 1.200 | 30 | 9.360 / 7.462 | 47,8% | ~2,1% |
+
+> O percentual de eventos marcados como `interpolated=True` (distância mínima > 100m) é exposto como **metadado de qualidade**. Além disso, viagens candidatas que apresentam menos de 3 pings ou mais de 90% dos eventos interpolados são barradas pela Taxa de Censura Operacional para não poluírem o modelo.
 
 ## 4.2 Descoberta de Processos e Análise do Modelo Real de Operação
 

@@ -20,9 +20,9 @@ Foram coletados dois grandes regimes operacionais conforme a cadência temporal:
 
 ### 3.2.2 Pré-processamento e Estruturação dos Dados Brutos
 
-O pré-processamento codificado em `clean_telemetry` realiza, por veículo: (i) remoção de coordenadas nulas; (ii) exclusão de registros marcados como garagem/`REC`; (iii) remoção de estados operacionais nulos (`SITUACAO`, `SENT`); (iv) remoção de duplicatas exatas (veículo+timestamp); (v) filtro de *jitter* estacionário (distância mínima de 5m em relação ao ponto anterior); e (vi) rejeição de posições geográficas a mais de 500m de qualquer parada planejada da linha.
+O pré-processamento codificado em `clean_telemetry` realiza, por veículo: (i) remoção de coordenadas nulas; (ii) exclusão de registros marcados como garagem/`REC`; (iii) remoção de estados operacionais nulos (`SITUACAO`, `SENT`); (iv) remoção de duplicatas exatas (veículo+timestamp); (v) filtro de *jitter* estacionário (distância mínima de 5m em relação ao ponto anterior); e (vi) rejeição de posições geográficas anômalas (*outliers*).
 
-> **Ressalva metodológica:** a medida "distância à parada" é uma proxy operacional para distância à via. Em trechos esparsos (paradas consecutivas separadas por >1km), pings legítimos no meio do trecho podem ser descartados; e viagens em desvio real de rota tendem a ser integralmente censuradas. Uma alternativa metodologicamente mais correta — distância ao traçado físico (`shapeLinha`) — está registrada como melhoria futura (ver plano, tarefa F1.7).
+Nesta última etapa (vi), para evitar o descarte incorreto de pings válidos em trechos expressos (onde paradas consecutivas distam mais de 1 km), a distância de cada ping é mensurada preferencialmente em relação aos vértices contínuos do traçado da linha (`shapeLinha`). Apenas leituras de GPS a mais de 500 metros de qualquer ponto do *shape* planejado são consideradas espúrias e definitivamente descartadas. Em abordagens legadas (sem dados do *shape*), o filtro limitava-se a medir a distância aos pontos fixos de parada, resultando em falsos positivos em vias arteriais, problema que nossa metodologia resolveu.
 
 ## 3.3 Construção do Log de Eventos via Map Matching HMM e Interpolação Temporal
 

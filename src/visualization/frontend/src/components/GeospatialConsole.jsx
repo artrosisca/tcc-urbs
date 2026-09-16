@@ -4,7 +4,7 @@ import { MapView } from '@deck.gl/core';
 import { TileLayer } from '@deck.gl/geo-layers';
 import { PathLayer, ScatterplotLayer, IconLayer, BitmapLayer } from '@deck.gl/layers';
 import { TripsLayer } from '@deck.gl/geo-layers';
-import { Play, Pause, Compass, MapPin, Bus, Calendar, Activity, CheckCircle2, Clock, RotateCw } from 'lucide-react';
+import { X, Play, Pause, Compass, MapPin, Bus, Calendar, Activity, CheckCircle2, Clock, RotateCw } from 'lucide-react';
 
 const LINE_ARCHETYPES = {
   '010': 'Interbairros I (Circular)',
@@ -42,7 +42,8 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
   // Time controls
   const [isPlaying, setIsPlaying] = useState(false);
   const [time, setTime] = useState(0);
-  const [maxTime, setMaxTime] = useState(86400); // 24h in seconds
+  const [maxTime, setMaxTime] = useState(86400);
+  const [minTime, setMinTime] = useState(0); // 24h in seconds
   const animationRef = useRef(null);
 
   // Extract paths for TripsLayer
@@ -151,12 +152,26 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
       });
 
       setTrips(processedTrips);
-      if (minTimeVal !== Infinity) {
-        setTime(minTimeVal);
-        setMaxTime(maxTimeVal);
+
+      if (activeTripId) {
+        const singleTrip = processedTrips.find(t => t.id === activeTripId);
+        if (singleTrip) {
+          setTrips([singleTrip]);
+          const t_min = Math.min(...singleTrip.timestamps);
+          const t_max = Math.max(...singleTrip.timestamps);
+          setTime(t_min);
+          setMinTime(t_min);
+          setMaxTime(t_max);
+        }
+      } else {
+        if (minTimeVal !== Infinity) {
+          setTime(minTimeVal);
+          setMinTime(minTimeVal);
+          setMaxTime(maxTimeVal);
+        }
       }
     }
-  }, [mapData, isLogicalMode]);
+  }, [mapData, isLogicalMode, activeTripId]);
 
   // Animation Loop
   useEffect(() => {
@@ -451,7 +466,7 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
           </div>
           <input
             type="range"
-            min={0}
+            min={minTime}
             max={maxTime}
             value={time}
             onChange={handleTimeSliderChange}

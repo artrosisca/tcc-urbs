@@ -126,6 +126,8 @@ def process_stream(line: str, start_date: str, end_date: str):
     q = queue.Queue()
     
     def run_pipeline():
+        global _dashboard_cache
+        _dashboard_cache.clear()
         old_stdout = sys.stdout
         sys.stdout = SSEStdoutRedirector(q)
         try:
@@ -428,6 +430,48 @@ def get_performance_json(line: str, start_date: str, end_date: str, direction: s
 
 # 6.7. Endpoint de Auditoria Diária da Frota (Visão Executiva CCO)
 _fleet_audit_cache: Dict[str, Dict[str, Any]] = {}
+
+
+# --- DASHBOARD CACHE ---
+_dashboard_cache = {}
+
+def get_dashboard_cache(key: str):
+    if key in _dashboard_cache:
+        data, timestamp = _dashboard_cache[key]
+        if time.time() - timestamp < 300: # 5 minutes TTL
+            return data
+        del _dashboard_cache[key]
+    return None
+
+def set_dashboard_cache(key: str, data: dict):
+    _dashboard_cache[key] = (data, time.time())
+
+@app.get("/api/dashboard-overview")
+def get_dashboard_overview(line: str, start_date: str, end_date: str, direction: str = "VOLTA", start_hour: str = None, end_hour: str = None):
+    cache_key = f"{line}_{start_date}_{end_date}_{direction}_{start_hour}_{end_hour}"
+    cached_data = get_dashboard_cache(cache_key)
+    if cached_data:
+        return cached_data
+
+    try:
+        map_data = get_map_data(line, start_date, end_date, direction, start_hour, end_hour)
+        discovery_svg = get_discovery(line, start_date, end_date, direction, start_hour, end_hour).body.decode("utf-8")
+        conformance = get_conformance(line, start_date, end_date, direction, start_hour, end_hour)
+        performance = get_performance_json(line, start_date, end_date, direction, start_hour, end_hour)
+
+        result = {
+            "map_data": map_data,
+            "discovery": discovery_svg,
+            "conformance": conformance,
+            "performance": performance
+        }
+        set_dashboard_cache(cache_key, result)
+        return result
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+# -----------------------
 
 @app.get("/api/fleet-audit")
 def get_fleet_audit(regime: str = "B"):

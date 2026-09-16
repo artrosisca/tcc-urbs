@@ -37,39 +37,21 @@ export default function App() {
     const query = `line=${line}&start_date=${startDate}&end_date=${endDate}&direction=${direction}&start_hour=${startHour}&end_hour=${endHour}`;
 
     try {
-      const [mapRes, petriRes, confRes, perfRes] = await Promise.all([
-        fetch(`/api/map-data?${query}`),
-        fetch(`/api/discovery?${query}`),
-        fetch(`/api/conformance?${query}`),
-        fetch(`/api/performance-json?${query}`)
-      ]);
-
-      if (mapRes.ok) {
-        setMapData(await mapRes.json());
+      const res = await fetch(`/api/dashboard-overview?${query}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMapData(data.map_data || null);
+        setPetriNetData(data.discovery || null);
+        setConformanceData(data.conformance || null);
+        setPerformanceData(data.performance || null);
       } else {
         setMapData(null);
-      }
-
-      if (petriRes.ok) {
-        setPetriNetData(await petriRes.text());
-      } else {
         setPetriNetData(null);
-      }
-
-      if (confRes.ok) {
-        setConformanceData(await confRes.json());
-      } else {
         setConformanceData(null);
-      }
-
-      if (perfRes.ok) {
-        setPerformanceData(await perfRes.json());
-      } else {
         setPerformanceData(null);
       }
     } catch (err) {
       console.error('Error fetching dashboard metrics:', err);
-      setMapData(null);
     } finally {
       setIsLoading(false);
     }

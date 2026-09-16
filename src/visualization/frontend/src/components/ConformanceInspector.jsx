@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldAlert, CheckCircle, Percent, Activity, Compass } from 'lucide-react';
 
-export default function ConformanceInspector({ conformanceData }) {
+export default function ConformanceInspector({ conformanceData, onTripSelect }) {
   if (!conformanceData) {
     return (
       <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-400 text-xs">
@@ -101,7 +101,12 @@ export default function ConformanceInspector({ conformanceData }) {
                   </tr>
                 ) : (
                   deviant_trips.map((trip, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50 transition-all font-medium text-slate-700">
+                    <tr 
+                      key={idx} 
+                      className="hover:bg-blue-50 transition-all font-medium text-slate-700 cursor-pointer"
+                      onClick={() => onTripSelect && onTripSelect(trip.case_id)}
+                      title="Clique para assistir o Replay desta viagem no Mapa"
+                    >
                       <td className="p-3 font-mono font-bold text-slate-900">{trip.vehicle}</td>
                       <td className="p-3 font-mono">{trip.tabela}</td>
                       <td className="p-3">{trip.total_visited}</td>

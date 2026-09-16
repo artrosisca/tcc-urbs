@@ -127,22 +127,37 @@ export default function ConformanceInspector({ conformanceData }) {
               </div>
             ) : (
               skipped_stops.map((stop, idx) => {
-                const totalSkips = skipped_stops[0].count; // Max count for percentage scale
-                const pct = (stop.count / totalSkips) * 100;
+                const absolutePct = total_cases > 0 ? (stop.count / total_cases) * 100 : 0;
+                
+                let badgeColor = 'bg-emerald-100 text-emerald-700';
+                let barColor = 'bg-emerald-500';
+                
+                if (absolutePct > 15) {
+                  badgeColor = 'bg-rose-100 text-rose-700';
+                  barColor = 'bg-rose-500';
+                } else if (absolutePct > 5) {
+                  badgeColor = 'bg-amber-100 text-amber-700';
+                  barColor = 'bg-amber-500';
+                }
                 
                 return (
                   <div key={idx} className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-semibold text-slate-600">
-                      <span className="truncate max-w-[200px]" title={stop.stop_name}>
-                        {stop.stop_name}
-                      </span>
-                      <span className="text-slate-500 font-bold">{stop.count}x</span>
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="truncate max-w-[180px]" title={stop.stop_name}>
+                          {stop.stop_seq ? `[#${stop.stop_seq}] ` : ''}{stop.stop_name}
+                        </span>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeColor}`}>
+                          {absolutePct.toFixed(1)}%
+                        </span>
+                      </div>
+                      <span className="text-slate-500 font-bold ml-2 shrink-0">{stop.count}x</span>
                     </div>
                     {/* Bar visual representation */}
                     <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
                       <div
-                        className="bg-amber-500 h-full rounded-full transition-all duration-500"
-                        style={{ width: `${pct}%` }}
+                        className={`${barColor} h-full rounded-full transition-all duration-500`}
+                        style={{ width: `${Math.max(absolutePct, 2)}%` }}
                       ></div>
                     </div>
                   </div>

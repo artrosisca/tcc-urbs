@@ -253,7 +253,10 @@ class ProcessMiningEngine:
                     if s_rows.empty:
                         clean_name = str(s_nome)
                         skipped.append(clean_name)
-                        skipped_stops_all.append(clean_name)
+                        if use_seq:
+                            skipped_stops_all.append((int(s_seq), clean_name))
+                        else:
+                            skipped_stops_all.append((-1, clean_name))
                     elif 'interpolated' in s_rows.columns and s_rows['interpolated'].iloc[0]:
                         interp_count += 1
 
@@ -276,11 +279,14 @@ class ProcessMiningEngine:
             # Aggregate skipped counts
             skipped_counts = []
             if skipped_stops_all:
-                series = pd.Series(skipped_stops_all).value_counts()
-                for stop_name, count in series.items():
+                df_skipped = pd.DataFrame(skipped_stops_all, columns=['seq', 'name'])
+                counts = df_skipped.groupby(['seq', 'name']).size().reset_index(name='count')
+                counts = counts.sort_values('count', ascending=False)
+                for _, row in counts.iterrows():
                     skipped_counts.append({
-                        "stop_name": str(stop_name),
-                        "count": int(count)
+                        "stop_seq": int(row['seq']) if row['seq'] != -1 else None,
+                        "stop_name": str(row['name']),
+                        "count": int(row['count'])
                     })
 
             # Top deviant trips

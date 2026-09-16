@@ -23,7 +23,7 @@ export default function ProcessVisualizer({ petriNetData }) {
 
       if (!g.empty()) {
         const zoom = d3.zoom()
-          .scaleExtent([0.1, 5])
+          .scaleExtent([0.1, 100]) // Allow massive zoom-in
           .on('zoom', (event) => {
             g.attr('transform', event.transform);
           });
@@ -31,9 +31,9 @@ export default function ProcessVisualizer({ petriNetData }) {
         svg.call(zoom);
 
         // Instead of shrinking to fit, start with a comfortable scale at the left (source)
-        // Adjust Y so it's centered vertically (assuming typical graph height of ~150px)
+        // Adjust Y so it's centered vertically
         const containerHeight = containerRef.current.clientHeight || 500;
-        const initialScale = 0.8;
+        const initialScale = 1.5; // Starts larger!
         const initialY = containerHeight / 2 - (100 * initialScale);
 
         const initialTransform = d3.zoomIdentity

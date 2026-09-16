@@ -32,7 +32,9 @@ class TrajectoryReconstructor:
         df_realtime: pd.DataFrame,
         static_stops_df: Optional[pd.DataFrame] = None,
         distance_threshold: float = 5.0,
-        outlier_threshold: float = 500.0
+        outlier_threshold: float = 500.0,
+        static_shape_df: Optional[pd.DataFrame] = None,
+        shape_outlier_threshold: float = 500.0
     ) -> pd.DataFrame:
         """
         Clean raw GPS telemetry points (remove nulls, REC/garage records, exact dupes, jitter, and outliers).
@@ -70,20 +72,23 @@ class TrajectoryReconstructor:
             keep_mask = df['dist_prev'].isna() | (df['dist_prev'] >= distance_threshold)
             df = df[keep_mask].drop(columns=['prev_lat', 'prev_lon', 'dist_prev'])
 
-        # 5. Outlier distance check against static stops
-        if static_stops_df is not None and not static_stops_df.empty and 'LAT' in static_stops_df.columns:
-            stop_lats = static_stops_df['LAT'].dropna().values
-            stop_lons = static_stops_df['LON'].dropna().values
-            if len(stop_lats) > 0:
+        # 5. Outlier distance check: prefer route shape (trajectory path); fall back to stops if shape not provided
+        ref_df = static_shape_df if (static_shape_df is not None and not static_shape_df.empty and 'LAT' in static_shape_df.columns) else static_stops_df
+        threshold = shape_outlier_threshold if (static_shape_df is not None and not static_shape_df.empty and 'LAT' in static_shape_df.columns) else outlier_threshold
+
+        if ref_df is not None and not ref_df.empty and 'LAT' in ref_df.columns:
+            ref_lats = ref_df['LAT'].dropna().values
+            ref_lons = ref_df['LON'].dropna().values
+            if len(ref_lats) > 0:
                 valid_gps = []
                 for _, row in df.iterrows():
                     dists = haversine_vectorized(
-                        np.full_like(stop_lats, row['LAT']),
-                        np.full_like(stop_lons, row['LON']),
-                        stop_lats,
-                        stop_lons
+                        np.full_like(ref_lats, row['LAT']),
+                        np.full_like(ref_lons, row['LON']),
+                        ref_lats,
+                        ref_lons
                     )
-                    valid_gps.append(bool(dists.min() <= outlier_threshold))
+                    valid_gps.append(bool(dists.min() <= threshold))
                 df = df[valid_gps].copy()
 
         return df
@@ -527,7 +532,11 @@ class TrajectoryReconstructor:
         if realtime_df.empty or static_data.get('pontos', pd.DataFrame()).empty:
             return (pd.DataFrame(), empty_stats) if return_stats else pd.DataFrame()
 
-        df_clean = cls.clean_telemetry(realtime_df, static_data.get('pontos'))
+        df_clean = cls.clean_telemetry(
+            realtime_df,
+            static_data.get('pontos'),
+            static_shape_df=static_data.get('shape')
+        )
         if df_clean.empty:
             return (pd.DataFrame(), empty_stats) if return_stats else pd.DataFrame()
 

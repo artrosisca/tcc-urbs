@@ -367,3 +367,52 @@ def test_reconstruct_event_log_operational_censorship_stats(tmp_path, sample_sta
     assert saved_stats["dropped_high_interpolation"] == 1
 
 
+
+def test_clean_telemetry_filters_by_shape_distance():
+    """
+    TDD Spec (F1.7):
+    When static_shape_df is provided:
+    1. A GPS ping situated 700m away from any stop, but directly on the route shape (~0m),
+       MUST BE PRESERVED (not falsely discarded as an outlier).
+    2. A GPS ping situated 2km away from the shape MUST BE DISCARDED as an outlier.
+    """
+    from datetime import datetime, timedelta
+
+    # 2 paradas separadas por ~2km ao longo do eixo Norte-Sul (LAT ~ 0.018 graus ~ 2km)
+    stops_df = pd.DataFrame([
+        {"SEQ": 1, "NUM": "101", "NOME": "Parada Sul", "SENTIDO": "VOLTA", "LAT": -25.5350, "LON": -49.2710},
+        {"SEQ": 2, "NUM": "102", "NOME": "Parada Norte", "SENTIDO": "VOLTA", "LAT": -25.5170, "LON": -49.2710},
+    ])
+
+    # Shape contínuo ligando as paradas
+    shape_df = pd.DataFrame([
+        {"SHP": "SHP_1", "LAT": -25.5350, "LON": -49.2710},
+        {"SHP": "SHP_1", "LAT": -25.5260, "LON": -49.2710},  # meio do trecho (~1km de cada parada)
+        {"SHP": "SHP_1", "LAT": -25.5170, "LON": -49.2710},
+    ])
+
+    base_time = datetime(2025, 10, 24, 8, 0, 0)
+    raw_telemetry = pd.DataFrame([
+        # Ping 1: Próximo à Parada Sul
+        {"COD": "VEH01", "CODIGOLINHA": "541", "LAT": -25.5348, "LON": -49.2710, "request_timestamp": (base_time + timedelta(minutes=0)).strftime("%Y-%m-%d %H:%M:%S"), "SENT": "VOLTA", "SITUACAO": "OP", "TABELA": "1"},
+        # Ping 2: No meio do trecho expresso (LAT: -25.5260). Fica a ~1000m de ambas as paradas (> 500m), mas a 0m do shape!
+        {"COD": "VEH01", "CODIGOLINHA": "541", "LAT": -25.5260, "LON": -49.2710, "request_timestamp": (base_time + timedelta(minutes=2)).strftime("%Y-%m-%d %H:%M:%S"), "SENT": "VOLTA", "SITUACAO": "OP", "TABELA": "1"},
+        # Ping 3: Outlier legítimo (a 2km a leste do shape: LON: -49.2500)
+        {"COD": "VEH01", "CODIGOLINHA": "541", "LAT": -25.5260, "LON": -49.2500, "request_timestamp": (base_time + timedelta(minutes=4)).strftime("%Y-%m-%d %H:%M:%S"), "SENT": "VOLTA", "SITUACAO": "OP", "TABELA": "1"},
+    ])
+
+    # Com o filtro legado (apenas stops): o Ping 2 é descartado porque está a >500m de qualquer parada
+    legacy_cleaned = TrajectoryReconstructor.clean_telemetry(raw_telemetry, static_stops_df=stops_df)
+    assert len(legacy_cleaned) == 1  # Apenas Ping 1 sobreviveu
+
+    # Com F1.7 (shape fornecido): o Ping 2 DEVE SOBREVIVER, e o Ping 3 DEVE SER DESCARTADO
+    shape_cleaned = TrajectoryReconstructor.clean_telemetry(
+        raw_telemetry,
+        static_stops_df=stops_df,
+        static_shape_df=shape_df
+    )
+    assert len(shape_cleaned) == 2
+    # Confirma que os pings retidos foram exatamente o Ping 1 e o Ping 2 (meio do trecho)
+    lats = shape_cleaned["LAT"].tolist()
+    assert -25.5348 in lats
+    assert -25.5260 in lats

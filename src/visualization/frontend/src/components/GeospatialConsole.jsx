@@ -315,36 +315,7 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
           views={new MapView({ id: 'mapbox-view', repeat: true })}
         />
         
-        {/* Toggle Mode Panel (Replay Dual) */}
-        <div className="absolute top-4 left-4 bg-white/95 backdrop-blur shadow-md rounded-lg p-3 border border-slate-200 z-10 space-y-2">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Replay Dual (Validação)
-          </div>
-          <div className="flex gap-1.5 bg-slate-100 p-0.5 rounded-md">
-            <button
-              type="button"
-              onClick={() => setIsLogicalMode(true)}
-              className={`py-1.5 px-3 rounded-md text-xs font-semibold transition-all ${
-                isLogicalMode
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Lógico (Alinhado)
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsLogicalMode(false)}
-              className={`py-1.5 px-3 rounded-md text-xs font-semibold transition-all ${
-                !isLogicalMode
-                  ? 'bg-white text-rose-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              Físico (Real GPS)
-            </button>
-          </div>
-        </div>
+
 
         {/* Floating Active Configuration & Sync Status Chip */}
         <div className="absolute top-4 right-4 bg-white/95 backdrop-blur shadow-md rounded-xl p-3 border border-slate-200/90 z-20 max-w-sm space-y-2 select-none">
@@ -433,8 +404,8 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
             <span className="text-slate-600 font-medium">Ponto de Parada</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`w-3.5 h-1.5 rounded-full ${isLogicalMode ? 'bg-blue-500' : 'bg-red-500'}`}></span>
-            <span className="text-slate-600 font-medium">Ônibus ({isLogicalMode ? 'Alinhado' : 'Real'})</span>
+            <span className="w-3.5 h-1.5 rounded-full bg-blue-500"></span>
+            <span className="text-slate-600 font-medium">Ônibus (Log de Eventos)</span>
           </div>
         </div>
       </div>

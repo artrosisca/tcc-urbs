@@ -7,29 +7,40 @@ export default function ProcessVisualizer({ petriNetData }) {
   useEffect(() => {
     if (!petriNetData || !containerRef.current) return;
 
-    // Apply D3 zoom to the injected SVG
     const svgElement = containerRef.current.querySelector('svg');
     if (svgElement) {
-      // Set width/height 100% to fit container
+      // Parse original dimensions
+      const originalViewBox = svgElement.getAttribute('viewBox');
+      
+      // Let the SVG fill the container, but remove viewBox so the browser doesn't auto-shrink it
       svgElement.setAttribute('width', '100%');
       svgElement.setAttribute('height', '100%');
+      svgElement.removeAttribute('viewBox');
       svgElement.classList.add('cursor-grab', 'active:cursor-grabbing');
 
       const svg = d3.select(svgElement);
-      
-      // Wrap internal contents in a g tag if not already (Graphviz outputs a top-level <g> usually)
-      const g = svg.select('g');
+      const g = svg.select('g'); // the root graph0 element from Graphviz
+
       if (!g.empty()) {
         const zoom = d3.zoom()
-          .scaleExtent([0.1, 4])
+          .scaleExtent([0.1, 5])
           .on('zoom', (event) => {
             g.attr('transform', event.transform);
           });
 
         svg.call(zoom);
-        
-        // Reset zoom to fit graph automatically on load
-        svg.call(zoom.transform, d3.zoomIdentity);
+
+        // Instead of shrinking to fit, start with a comfortable scale at the left (source)
+        // Adjust Y so it's centered vertically (assuming typical graph height of ~150px)
+        const containerHeight = containerRef.current.clientHeight || 500;
+        const initialScale = 0.8;
+        const initialY = containerHeight / 2 - (100 * initialScale);
+
+        const initialTransform = d3.zoomIdentity
+          .translate(20, initialY)
+          .scale(initialScale);
+          
+        svg.call(zoom.transform, initialTransform);
       }
     }
   }, [petriNetData]);

@@ -31,7 +31,10 @@ export default function ProcessVisualizer({ petriNetData }) {
       const svg = d3.select(svgElement);
       const g = d3.select(zoomWrapper);
 
+      const rect = svgElement.getBoundingClientRect();
+
       const zoom = d3.zoom()
+        .extent([[0, 0], [rect.width, rect.height]])
         .scaleExtent([0.1, 10]) // Cap slider max to something reasonable
         .on('zoom', (event) => {
           g.attr('transform', event.transform);

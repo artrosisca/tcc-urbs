@@ -27,4 +27,4 @@ A interface também foi melhorada para apresentar os resultados de forma mais cl
 
 1. **Texto (TCC):** A parte de Metodologia e Resultados já está sendo sincronizada com as mudanças acima.
 2. **Código:** O coração do projeto (pipeline) já está finalizado, com 89 testes automáticos garantindo que nada quebre.
-3. **Falta pouco na Interface:** Faltam só três detalhes rápidos (F2.6, F2.7 e F2.8), como arrumar o "slider" de tempo no mapa e fazer com que ao clicar em um ônibus na tabela de erros, o mapa foque direto nele.
+3. **Interface Finalizada:** Todas as melhorias de UX/UI foram concluídas com sucesso. O *Map Matching* foi aplicado nas trajetórias visuais, o controle de tempo é dinâmico e clicar em uma infração na auditoria isola o ônibus automaticamente no mapa (Drill-down).

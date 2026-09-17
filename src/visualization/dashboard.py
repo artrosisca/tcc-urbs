@@ -490,8 +490,6 @@ def get_fleet_audit(regime: str = "B"):
         return _fleet_audit_cache[regime]
 
     lines = default_telemetry_repo.list_available_lines(regime=regime)
-    start_date = "2025-10-24" if regime == "A" else "2025-12-02"
-    end_date = "2025-10-30" if regime == "A" else "2025-12-08"
     
     fleet_lines = []
     line_names = {
@@ -501,9 +499,22 @@ def get_fleet_audit(regime: str = "B"):
     }
     
     for l in lines:
-        csv_path = find_event_log_file(l, start_date, end_date)
-        if not csv_path or not os.path.exists(csv_path):
+        import glob
+        files = glob.glob(f"data/dados_processados/event_log_{l}_*.csv")
+        if not files:
             continue
+        
+        valid_files = []
+        for f in files:
+            if regime == "A" and "2025-10" in f:
+                valid_files.append(f)
+            elif regime == "B" and "2025-12" in f:
+                valid_files.append(f)
+                
+        if not valid_files:
+            continue
+            
+        csv_path = sorted(valid_files)[-1]
         try:
             df = pd.read_csv(csv_path)
             total_cases = int(df['case:concept:name'].nunique()) if 'case:concept:name' in df.columns else 0

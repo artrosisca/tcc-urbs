@@ -359,11 +359,11 @@ class FilesystemTelemetryAdapter(TelemetryStorageAdapter):
             return {l.strip() for l in lines if l and l != 'REC' and not l.startswith('X') and len(l) <= 4}
 
         day_a = os.path.join(self.realtime_dir, '2025-10-24')
-        day_b = os.path.join(self.realtime_dir, '2025-12-02')
+        day_b = os.path.join(self.realtime_dir, '2025-12-02') # This folder does not exist locally
         if regime == "A":
             res = sorted(list(extract_lines_from_dir(day_a)))
         elif regime == "B":
-            res = sorted(list(extract_lines_from_dir(day_b))) or sorted(list(extract_lines_from_dir(day_a)))
+            res = sorted(list(extract_lines_from_dir(day_b)))
         else:
             lines_a = extract_lines_from_dir(day_a)
             lines_b = extract_lines_from_dir(day_b)

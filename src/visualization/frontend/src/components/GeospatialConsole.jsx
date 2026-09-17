@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import DeckGL from '@deck.gl/react';
 import { MapView } from '@deck.gl/core';
 import { TileLayer } from '@deck.gl/geo-layers';
-import { PathLayer, ScatterplotLayer, IconLayer, BitmapLayer } from '@deck.gl/layers';
+import { PathLayer, ScatterplotLayer, IconLayer, BitmapLayer, TextLayer } from '@deck.gl/layers';
 import { TripsLayer } from '@deck.gl/geo-layers';
 import { X, Play, Pause, Compass, MapPin, Bus, Calendar, Activity, CheckCircle2, Clock, RotateCw } from 'lucide-react';
 
@@ -277,11 +277,11 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
     new ScatterplotLayer({
       id: 'buses-markers-layer',
       data: trips.map(t => {
-        // Find index of current timestamp
         let idx = t.timestamps.findIndex(ts => ts >= time);
         if (idx === -1) idx = t.path.length - 1;
         return {
           id: t.id,
+          vehicle: t.vehicle,
           coord: t.path[idx] || [-49.2768, -25.4311]
         };
       }),
@@ -292,8 +292,35 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
       getLineWidth: 3,
       lineWidthMinPixels: 2,
       pickable: true
+    }),
+    // 6. Text labels for current bus locations
+    new TextLayer({
+      id: 'buses-text-layer',
+      data: trips.map(t => {
+        let idx = t.timestamps.findIndex(ts => ts >= time);
+        if (idx === -1) idx = t.path.length - 1;
+        return {
+          id: t.id,
+          vehicle: t.vehicle,
+          coord: t.path[idx] || [-49.2768, -25.4311]
+        };
+      }),
+      getPosition: d => d.coord,
+      getText: d => d.vehicle || 'Onibus',
+      getSize: 12,
+      getPixelOffset: [0, -20],
+      getColor: [0, 0, 0, 255],
+      getBackgroundColor: [255, 255, 255, 200],
+      background: true,
+      backgroundPadding: [4, 2, 4, 2],
+      fontFamily: 'monospace',
+      fontWeight: 'bold',
+      fontSettings: {sdf: true},
+      outlineWidth: 1,
+      outlineColor: [255, 255, 255, 255]
     })
   ];
+
 
   return (
     <div className="relative w-full h-full bg-slate-100 flex flex-col">
@@ -307,7 +334,7 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
             </div>
           </div>
         )}
-        <DeckGL
+        <DeckGL getTooltip={({object}) => object && object.vehicle ? `Veículo: ${object.vehicle}` : null}
           viewState={viewState}
           onViewStateChange={e => setViewState(e.viewState)}
           controller={true}

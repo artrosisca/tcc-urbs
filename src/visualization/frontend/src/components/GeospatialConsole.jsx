@@ -144,6 +144,7 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
         if (path.length > 0) {
           processedTrips.push({
             id: trip.case_id || trip.id,
+            vehicle: trip.vehicle,
             path: path.map(p => p.coordinate),
             timestamps: path.map(p => p.timestamp),
             speeds: path.map(p => p.speed)

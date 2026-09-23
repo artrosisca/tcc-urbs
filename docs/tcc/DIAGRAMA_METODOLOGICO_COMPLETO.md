@@ -11,7 +11,7 @@ O fluxo integra desde os procedimentos iniciais de tramitação e autorização 
 ```mermaid
 flowchart TD
     %% ESTÁGIO 1: TRÂMITES E AUTORIZAÇÃO
-    subgraph S1["1. Tramitação Institucional e Acesso a Dados"]
+    subgraph S1["1. Obtenção e Acesso aos Dados da API da URBS"]
         direction TB
         A1["Contato Institucional com a URBS<br/>• Envio de e-mails técnicos e ofício acadêmico<br/>• Articulação com gestores da RIT"] --> A2["Liberação de Acesso e Endpoints<br/>• Catálogo de dados abertos da URBS<br/>• Dicionário de dados operacionais (SCO)"]
         A2 --> A3["Mapeamento do Modelo de Dados<br/>• Telemetria dinâmica em tempo real<br/>• Cadastro estático de planejamento (C3SL/URBS)"]
@@ -45,7 +45,7 @@ flowchart TD
     %% ESTÁGIO 4: MINERAÇÃO DE PROCESSOS
     subgraph S4["4. Mineração de Processos (PM4Py Engine)"]
         direction TB
-        D1["Descoberta de Processos (Process Discovery)<br/>• Algoritmo Inductive Miner<br/>• Redes de Petri com transições silenciosas (τ) para desvios"]
+        D1["Descoberta de Processos (Process Discovery)<br/>• Algoritmo Inductive Miner<br/>• Identificação dos modelos reais de operação"]
         D2["Verificação de Conformidade (Conformance Checking)<br/>• Token-Based Replay (TBR)<br/>• Modelo normativo da URBS vs. Execução Real<br/>• Cálculo de Trace Fitness e Ranking de Paradas Puladas"]
         D3["Mineração de Desempenho (Performance Mining)<br/>• Grafo Diretamente-Seguido (DFG)<br/>• Anotação de tempos médios/medianos entre paradas<br/>• Mapeamento de gargalos estruturais e atrasos operacionais"]
     end
@@ -56,7 +56,7 @@ flowchart TD
         E1["Backend REST e Processamento Assíncrono<br/>(FastAPI, streaming de progresso via Server-Sent Events - SSE)"]
         E2["Módulo Macro: Auditoria Diária CCO<br/>(Classificação Conforme/Atenção/Crítico da frota, taxas globais)"]
         E3["Módulo Micro: Inspetor de Conformidade e Desempenho<br/>(Drill-down por linha/viagem, visualização de Petri Nets e DFGs com zoom)"]
-        E4["Replay Geoespacial 4D em Alta Resolução<br/>(Deck.gl v9 TripsLayer + TextLayer sobre traçado físico com slider temporal)"]
+        E4["Replay Espaçotemporal da Frota<br/>(Deck.gl v9 TripsLayer + TextLayer sobre traçado físico com slider temporal)"]
         E1 --> E2
         E1 --> E3
         E1 --> E4
@@ -73,7 +73,7 @@ flowchart TD
 
 ## 2. Detalhamento Técnico das 5 Macroetapas
 
-### Etapa 1: Tramitação Institucional e Acesso a Dados
+### Etapa 1: Obtenção e Acesso aos Dados da API da URBS
 - **Objetivo:** Estabelecer a base formal para aquisição das informações oficiais do transporte público de Curitiba.
 - **Ações Realizadas:**
   - Envio de correspondência eletrônica e solicitação institucional formal junto aos setores de tecnologia e planejamento da URBS;
@@ -117,7 +117,7 @@ flowchart TD
 ### Etapa 4: Mineração de Processos (Motor PM4Py)
 - **Objetivo:** Descobrir, auditar e quantificar os fluxos operacionais reais da frota de transporte.
 - **Técnicas Empregadas (`src/mining/`):**
-  - **Descoberta de Processos (*Process Discovery*):** Aplicação do algoritmo **Inductive Miner** (`discover_petri_net_inductive`) para geração de Redes de Petri, revelando o comportamento real e a emergência de transições silenciosas ($\tau$) criadas automaticamente para representar atalhos e desvios de rota.
+  - **Descoberta de Processos (*Process Discovery*):** Aplicação do algoritmo **Inductive Miner** (`discover_petri_net_inductive`) para geração de Redes de Petri e identificação dos modelos reais de operação da frota.
   - **Verificação de Conformidade (*Conformance Checking*):** Execução do algoritmo de **Token-Based Replay (TBR)** do log empírico contra o modelo normativo sequencial oficial prescrito pela URBS. Produção do índice de fidelidade (*Trace Fitness*, de 0.0 a 1.0) e do ranking quantitativo de paradas puladas por linha e veículo.
   - **Mineração de Desempenho (*Performance Mining*):** Construção do Grafo Diretamente-Seguido de Desempenho (**Performance DFG**), annotando durações médias e medianas de trânsito em cada arco viário, isolando gargalos estruturais e quantificando atrasos frente à tabela horária programada.
 
@@ -129,5 +129,5 @@ flowchart TD
   - **Backend Reativo em FastAPI:** Serviços REST de alta velocidade integrados ao PM4Py, equipados com streaming *Server-Sent Events* (SSE) na rota `/api/process-stream` para execução de mineração sob demanda com rastreamento visual de progresso.
   - **Painel Macro (Auditoria Diária CCO):** Tabela de governança executiva com classificação automática das linhas em três níveis de criticidade (**Conforme**, **Atenção** e **Crítico**), consolidando indicadores globais de frotas e violações de itinerário.
   - **Painel Micro (Inspetor de Conformidade e Descoberta):** Análise detalhada por veículo e viagem com drill-down investigativo, acompanhada de visualização vetorial interativa de Redes de Petri e DFGs de desempenho com controle de zoom e navegação espacial via `svg-pan-zoom`.
-  - **Replay Geoespacial 4D:** Console cartográfico imersivo desenvolvido em **Deck.gl v9** (`TripsLayer` e `TextLayer`), sincronizando dezenas de veículos simultâneos ao longo da malha física real da cidade com linha do tempo contínua ajustável (00:00 às 24:00).
+  - **Replay Espaçotemporal da Frota:** Console cartográfico imersivo desenvolvido em **Deck.gl v9** (`TripsLayer` e `TextLayer`), sincronizando dezenas de veículos simultâneos ao longo da malha física real da cidade com linha do tempo contínua ajustável (00:00 às 24:00).
 - **Garantia de Qualidade e Reprodutibilidade:** Suíte automatizada com **89 testes contínuos** via `pytest`, atestando a robustez de ponta a ponta da plataforma.

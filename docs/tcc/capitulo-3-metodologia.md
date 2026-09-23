@@ -8,11 +8,11 @@ Este capítulo formaliza a metodologia científica e os procedimentos de engenha
 
 A solução proposta estrutura-se como um pipeline modular de ponta a ponta dividido em cinco estágios complementares:
 
-1. **Tramitação e Acesso a Dados:** Estabelecimento do canal formal com o órgão gestor do transporte municipal para obtenção dos endpoints e catálogo de dados abertos.
+1. **Obtenção e Acesso aos Dados da API da URBS:** Estabelecimento do canal formal com o órgão gestor do transporte municipal para obtenção dos endpoints e catálogo de dados abertos.
 2. **Aquisição Contínua e Armazenamento:** Coleta autônoma 24/7 de telemetria dinâmica via API REST da URBS em diferentes cadências amostrais, associada à carga de dados cadastrais estáticos históricos via C3SL/UFPR.
 3. **ETL e Reconstrução de Trajetórias:** Higienização de dados, rejeição de *outliers* com restrição viária no *shape*, segmentação semântica de viagens (*cases*), *map matching* com HMM/Viterbi, interpolação PCHIP e controle de qualidade via Taxa de Censura Operacional.
 4. **Mineração de Processos (Motor PM4Py):** Execução dos algoritmos de descoberta indutiva (*Inductive Miner* com Redes de Petri), verificação de conformidade (*Token-Based Replay* com cálculo de *Trace Fitness*) e análise de desempenho temporal (*Directly-Follows Graph* — DFG).
-5. **Plataforma Integrada de Auditoria Operacional:** Ambiente web reativo desacoplado (backend FastAPI e frontend React/Deck.gl v9) dotado de visão macro (Auditoria Diária CCO), visão micro (Inspetor de Conformidade) e visualização geoespacial 4D em alta resolução.
+5. **Plataforma Integrada de Auditoria Operacional:** Ambiente web reativo desacoplado (backend FastAPI e frontend React/Deck.gl v9) dotado de visão macro (Auditoria Diária CCO), visão micro (Inspetor de Conformidade) e replay espaçotemporal da frota.
 
 A Figura 3.1 ilustra a arquitetura conceitual e o fluxo de dados entre os componentes do pipeline.
 
@@ -20,13 +20,14 @@ A Figura 3.1 ilustra a arquitetura conceitual e o fluxo de dados entre os compon
 flowchart LR
     A["API URBS / C3SL<br/>(Telemetria e Cadastro)"] --> B["Coletor Autônomo<br/>(Particionamento CSV)"]
     B --> C["Pipeline ETL & Reconstrução<br/>(HMM + PCHIP + Geocerca 150m)"]
-    C --> D["Motor de Process Mining<br/>(PM4Py: Petri Net, TBR, DFG)"]
-    D --> E["Plataforma CCO & Replay 4D<br/>(FastAPI + React + Deck.gl)"]
+    D["Motor de Process Mining<br/>(PM4Py: Petri Net, TBR, DFG)"]
+    C --> D
+    D --> E["Plataforma CCO & Replay Espaçotemporal<br/>(FastAPI + React + Deck.gl)"]
 ```
 
 ---
 
-## 3.2 Tramitação Institucional e Protocolo de Acesso aos Dados da URBS
+## 3.2 Obtenção e Acesso aos Dados da API da URBS
 
 A viabilização desta pesquisa demandou interlocução inicial direta com o corpo técnico e administrativo da Urbanização de Curitiba S/A (URBS), responsável pelo gerenciamento da Rede Integrada de Transporte (RIT). 
 

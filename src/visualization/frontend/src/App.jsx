@@ -5,6 +5,7 @@ import ProcessVisualizer from './components/ProcessVisualizer';
 import ConformanceInspector from './components/ConformanceInspector';
 import BottleneckProfiler from './components/BottleneckProfiler';
 import FleetAuditView from './components/FleetAuditView';
+import MiningConsole from './components/MiningConsole';
 import { Layers, GitCommit, ShieldAlert, BarChart3, ClipboardCheck, ArrowLeft } from 'lucide-react';
 
 const STORAGE_FILTERS_KEY = 'urbs_pm_filters';
@@ -184,13 +185,7 @@ export default function App() {
         filters={filters}
         setFilters={setFilters}
         onRunMining={handleRunMining}
-        processingLogs={processingLogs}
         isProcessing={isProcessing}
-        miningStatus={miningStatus}
-        onClearLogs={() => {
-          setProcessingLogs([]);
-          setMiningStatus('idle');
-        }}
         activeTab={activeTab}
       />
 
@@ -417,6 +412,20 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {/* Floating execution console drawer (on demand) */}
+      {miningStatus !== 'idle' && (
+        <div className="fixed bottom-4 right-4 z-50 w-96 max-w-[calc(100vw-2rem)] shadow-2xl rounded-xl overflow-hidden border border-slate-800">
+          <MiningConsole
+            logs={processingLogs}
+            status={miningStatus}
+            onClear={() => setProcessingLogs([])}
+            onDismiss={miningStatus !== 'running'
+              ? () => { setProcessingLogs([]); setMiningStatus('idle'); }
+              : undefined}
+          />
+        </div>
+      )}
     </div>
   );
 }

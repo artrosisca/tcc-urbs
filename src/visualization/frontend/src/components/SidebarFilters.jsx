@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Settings, RefreshCw, CheckCircle, AlertCircle, Calendar, Bus, RotateCw } from 'lucide-react';
-import MiningConsole from './MiningConsole';
+import InfoPopover from './InfoPopover';
 
 export default function SidebarFilters({
   filters,
   setFilters,
   onRunMining,
-  processingLogs,
   isProcessing,
-  miningStatus = 'idle',
-  onClearLogs,
   activeTab = 'audit'
 }) {
   const [minedLines, setMinedLines] = useState([]);
@@ -150,15 +147,16 @@ export default function SidebarFilters({
       {/* Config Form */}
       <div className="p-5 flex-1 overflow-y-auto space-y-5">
         {/* Bus Line Selector */}
-        <div className={`space-y-2 ${activeTab === 'audit' ? 'p-2.5 bg-blue-50/50 rounded-xl ring-1 ring-blue-200' : ''}`}>
-          {activeTab === 'audit' && (
-            <div className="p-2.5 rounded-lg border border-blue-200 bg-blue-50 text-[11px] text-blue-800 leading-snug">
-              <span className="font-bold">Modo Frota Ativo:</span> visualizando todas as linhas.
-              Selecione uma linha para pré-selecionar ou clique em <em>Inspecionar Linha</em> na tabela ao lado.
-            </div>
-          )}
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Linha de Ônibus</label>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+              Linha de Ônibus
+              {activeTab === 'audit' && (
+                <InfoPopover title="Modo Frota Ativo" align="left">
+                  Você está visualizando todas as linhas da frota. Selecionar uma linha aqui apenas a pré-seleciona; para inspecioná-la, clique em "Inspecionar Linha" na tabela da Auditoria Diária.
+                </InfoPopover>
+              )}
+            </label>
             <span className="text-[10px] font-bold text-slate-400">
               {rawLines.length + minedLines.length} linhas disponíveis
             </span>
@@ -310,28 +308,22 @@ export default function SidebarFilters({
 
         {/* Trips Status Card */}
         {tripStatus && (
-          <div className={`p-3 rounded-lg border text-xs flex items-start gap-2.5 ${
-            tripStatus.status === 'processed'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : tripStatus.exists
-              ? 'bg-amber-50 border-amber-200 text-amber-800'
-              : 'bg-slate-50 border-slate-200 text-slate-600'
+          <div className={`px-3 py-2 rounded-lg border text-xs flex items-center gap-2 ${
+            tripStatus.status === 'processed' ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            : tripStatus.exists ? 'bg-amber-50 border-amber-200 text-amber-800'
+            : 'bg-slate-50 border-slate-200 text-slate-600'
           }`}>
-            {tripStatus.status === 'processed' ? (
-              <CheckCircle className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-            ) : (
-              <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            {tripStatus.status === 'processed'
+              ? <CheckCircle className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+              : <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />}
+            <span className="font-semibold flex-1 truncate">
+              {tripStatus.status === 'processed' ? `Pronto (${tripStatus.count} viagens)`
+              : tripStatus.exists ? `Disponível para minerar (${tripStatus.count} pts)`
+              : 'Sem dados para este filtro'}
+            </span>
+            {tripStatus.message && (
+              <InfoPopover title="Cobertura dos dados" align="right">{tripStatus.message}</InfoPopover>
             )}
-            <div className="leading-snug">
-              <div className="font-semibold">
-                {tripStatus.status === 'processed'
-                  ? `Pronto (${tripStatus.count} viagens)`
-                  : tripStatus.exists
-                  ? `Disponível para minerar (${tripStatus.count} pts)`
-                  : 'Sem dados para este filtro'}
-              </div>
-              <div className="text-[11px] opacity-80 mt-0.5">{tripStatus.message}</div>
-            </div>
           </div>
         )}
 
@@ -388,13 +380,6 @@ export default function SidebarFilters({
           </div>
         </div>
       </details>
-
-      {/* Execution Console */}
-      <MiningConsole
-        logs={processingLogs}
-        status={miningStatus}
-        onClear={onClearLogs}
-      />
     </aside>
   );
 }

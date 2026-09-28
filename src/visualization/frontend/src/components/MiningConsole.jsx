@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, RefreshCw, CheckCircle, AlertCircle, ChevronDown, Copy, Check, Trash2 } from 'lucide-react';
+import { Terminal, RefreshCw, CheckCircle, AlertCircle, ChevronDown, Copy, Check, Trash2, X } from 'lucide-react';
 
-export default function MiningConsole({ logs = [], status = 'idle', onClear }) {
+export default function MiningConsole({ logs = [], status = 'idle', onClear, onDismiss }) {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const scrollRef = useRef(null);
@@ -75,22 +75,41 @@ export default function MiningConsole({ logs = [], status = 'idle', onClear }) {
   return (
     <div className="border-t border-slate-800 bg-slate-950 flex-shrink-0 select-none">
       {/* Console Toggle Header */}
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="w-full p-3 flex items-center justify-between text-[10px] uppercase font-bold text-slate-400 hover:text-slate-200 transition-colors tracking-wider"
-      >
-        <div className="flex items-center gap-2">
+      <div className="w-full p-3 flex items-center justify-between text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="flex items-center gap-2 hover:text-slate-200 transition-colors"
+        >
           <Terminal className="h-3.5 w-3.5 text-blue-400" />
           <span>Console de Execução</span>
           {renderStatusBadge()}
+        </button>
+        <div className="flex items-center gap-2">
+          {onDismiss && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+              className="text-slate-500 hover:text-slate-200 transition-colors"
+              title="Fechar console"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setIsOpen((prev) => !prev)}
+            className="text-slate-500 hover:text-slate-200 transition-colors"
+            aria-label={isOpen ? 'Recolher console' : 'Expandir console'}
+          >
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                isOpen ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
         </div>
-        <ChevronDown
-          className={`h-3.5 w-3.5 text-slate-500 transition-transform duration-200 ${
-            isOpen ? 'rotate-180' : ''
-          }`}
-        />
-      </button>
+      </div>
 
       {/* Expandable Console Body */}
       {isOpen && (

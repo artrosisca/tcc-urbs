@@ -11,3 +11,7 @@ Canonical 5-label triage vocabulary. See `docs/agents/triage-labels.md`.
 ### Domain docs
 
 Single-context layout (`CONTEXT.md` + `docs/adr/`). See `docs/agents/domain.md`.
+
+## Coding conventions
+
+- UI (React/JSX): nunca usar emojis em botões, títulos, labels ou logos — usar sempre ícones do `lucide-react`.

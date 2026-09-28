@@ -491,6 +491,8 @@ def get_fleet_audit(regime: str = "B"):
 
     lines = default_telemetry_repo.list_available_lines(regime=regime)
     
+    start_date = '2025-10-24' if regime == 'A' else '2025-12-02'
+    end_date = '2025-10-30' if regime == 'A' else '2025-12-08'
     fleet_lines = []
     line_names = {
         "010": "Interbairros I (Circular)",
@@ -519,7 +521,7 @@ def get_fleet_audit(regime: str = "B"):
             df = pd.read_csv(csv_path)
             total_cases = int(df['case:concept:name'].nunique()) if 'case:concept:name' in df.columns else 0
             
-            static_data = load_static_data(start_date, l)
+            static_data = load_static_data('2025-10-24' if regime == 'A' else '2025-12-02', l)
             stops_df = static_data.get('pontos', pd.DataFrame())
             chosen_dir, df_dir = resolve_direction_subset(df, "VOLTA")
             conf = ProcessMiningEngine.evaluate_conformance(df, stops_df, direction=chosen_dir)

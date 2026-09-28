@@ -5,7 +5,7 @@ import ProcessVisualizer from './components/ProcessVisualizer';
 import ConformanceInspector from './components/ConformanceInspector';
 import BottleneckProfiler from './components/BottleneckProfiler';
 import FleetAuditView from './components/FleetAuditView';
-import { Layers, GitCommit, ShieldAlert, BarChart3, Database, ClipboardCheck } from 'lucide-react';
+import { Layers, GitCommit, ShieldAlert, BarChart3, ClipboardCheck } from 'lucide-react';
 
 export default function App() {
   const [filters, setFilters] = useState({
@@ -18,10 +18,11 @@ export default function App() {
     endHour: '24:00'
   });
 
-   const [activeTab, setActiveTab] = useState('map');
+  const [activeTab, setActiveTab] = useState('map');
   const [activeTripId, setActiveTripId] = useState(null);
   const [processingLogs, setProcessingLogs] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [miningStatus, setMiningStatus] = useState('idle');
   const [isLogicalMode, setIsLogicalMode] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -66,6 +67,7 @@ export default function App() {
   // Execute Event Log generation via SSE
   const handleRunMining = () => {
     setIsProcessing(true);
+    setMiningStatus('running');
     setProcessingLogs([]);
     
     const { line, startDate, endDate } = filters;
@@ -76,11 +78,13 @@ export default function App() {
       if (msg === '__SUCCESS__') {
         setProcessingLogs(prev => [...prev, 'Log de Eventos processado com sucesso!']);
         setIsProcessing(false);
+        setMiningStatus('success');
         sse.close();
         fetchDashboardData(); // Refresh UI
       } else if (msg === '__FAILURE__') {
         setProcessingLogs(prev => [...prev, 'Erro crítico no processamento dos dados.']);
         setIsProcessing(false);
+        setMiningStatus('error');
         sse.close();
       } else {
         setProcessingLogs(prev => [...prev, msg]);
@@ -90,6 +94,7 @@ export default function App() {
     sse.onerror = () => {
       setProcessingLogs(prev => [...prev, 'Falha de comunicação com o servidor SSE.']);
       setIsProcessing(false);
+      setMiningStatus('error');
       sse.close();
     };
   };
@@ -103,6 +108,11 @@ export default function App() {
         onRunMining={handleRunMining}
         processingLogs={processingLogs}
         isProcessing={isProcessing}
+        miningStatus={miningStatus}
+        onClearLogs={() => {
+          setProcessingLogs([]);
+          setMiningStatus('idle');
+        }}
       />
 
       {/* Main Content Workspace */}

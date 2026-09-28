@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Settings, RefreshCw, Terminal, CheckCircle, AlertCircle, Calendar } from 'lucide-react';
+import { Play, Settings, RefreshCw, CheckCircle, AlertCircle, Calendar } from 'lucide-react';
+import MiningConsole from './MiningConsole';
 
 export default function SidebarFilters({
   filters,
   setFilters,
   onRunMining,
   processingLogs,
-  isProcessing
+  isProcessing,
+  miningStatus = 'idle',
+  onClearLogs
 }) {
-  const [availableLines, setAvailableLines] = useState([]);
   const [minedLines, setMinedLines] = useState([]);
   const [rawLines, setRawLines] = useState([]);
   const [tripStatus, setTripStatus] = useState(null);
@@ -344,12 +346,12 @@ export default function SidebarFilters({
         </button>
       </div>
 
-      {/* Advanced Settings & Logs details */}
-      <details className="group bg-slate-950 border-t border-slate-800" open={isProcessing}>
+      {/* Advanced Settings */}
+      <details className="group bg-slate-950 border-t border-slate-800">
         <summary className="p-3 text-[10px] uppercase font-bold text-slate-500 tracking-wider cursor-pointer hover:text-slate-300 transition-colors list-none flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Settings className="h-3.5 w-3.5" />
-            <span>Configurações TCC / Logs</span>
+            <span>Configurações TCC / Regime</span>
           </div>
           <span className="group-open:rotate-180 transition-transform">▼</span>
         </summary>
@@ -375,36 +377,15 @@ export default function SidebarFilters({
               ))}
             </div>
           </div>
-
-          {/* SSE Logs */}
-          <div className="flex flex-col font-mono text-[10px] text-slate-300 h-32">
-            <div className="flex items-center gap-1.5 text-[9px] uppercase font-bold text-slate-500 mb-1 tracking-wider">
-              <Terminal className="h-3 w-3" />
-              <span>Console de Execução</span>
-            </div>
-            <div className="flex-1 overflow-y-auto space-y-1 p-2 bg-slate-900 border border-slate-800 rounded-md">
-              {processingLogs.length === 0 ? (
-                <span className="text-slate-600">Aguardando execução...</span>
-              ) : (
-                processingLogs.map((log, idx) => (
-                  <div
-                    key={idx}
-                    className={
-                      log.includes('Concluído') || log.includes('salvo') || log.includes('sucesso')
-                        ? 'text-emerald-400'
-                        : log.includes('Erro')
-                        ? 'text-rose-400'
-                        : 'text-slate-300'
-                    }
-                  >
-                    &gt; {log}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
         </div>
       </details>
+
+      {/* Execution Console */}
+      <MiningConsole
+        logs={processingLogs}
+        status={miningStatus}
+        onClear={onClearLogs}
+      />
     </aside>
   );
 }

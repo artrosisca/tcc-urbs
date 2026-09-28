@@ -403,7 +403,14 @@ class FilesystemTelemetryAdapter(TelemetryStorageAdapter):
                 msg = f"Já existem dados minerados! Encontradas {count} viagens processadas das {min_t} às {max_t}."
             else:
                 msg = "Já existem dados minerados para esse período, mas não há viagens na faixa horária selecionada."
-            return {"exists": count > 0, "count": count, "message": msg, "status": "processed"}
+            directions = sorted(df_processed['gps_direction'].dropna().unique().tolist()) if 'gps_direction' in df_processed.columns else []
+            return {
+                "exists": count > 0,
+                "count": count,
+                "message": msg,
+                "status": "processed",
+                "available_directions": directions
+            }
 
         # Scan raw GPS points
         try:
@@ -513,7 +520,14 @@ class InMemoryTelemetryAdapter(TelemetryStorageAdapter):
         if key in self.processed_logs:
             df = self.processed_logs[key]
             cnt = int(df['case:concept:name'].nunique()) if 'case:concept:name' in df.columns else len(df)
-            return {"exists": True, "count": cnt, "message": f"Found {cnt} trips", "status": "processed"}
+            directions = sorted(df['gps_direction'].dropna().unique().tolist()) if 'gps_direction' in df.columns else []
+            return {
+                "exists": True,
+                "count": cnt,
+                "message": f"Found {cnt} trips",
+                "status": "processed",
+                "available_directions": directions
+            }
         if not self.realtime_data.empty:
             return {"exists": True, "count": len(self.realtime_data), "message": "Raw points available", "status": "raw"}
         return {"exists": False, "count": 0, "message": "No data", "status": "raw"}

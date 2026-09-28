@@ -5,7 +5,7 @@ import ProcessVisualizer from './components/ProcessVisualizer';
 import ConformanceInspector from './components/ConformanceInspector';
 import BottleneckProfiler from './components/BottleneckProfiler';
 import FleetAuditView from './components/FleetAuditView';
-import { Layers, GitCommit, ShieldAlert, BarChart3, ClipboardCheck } from 'lucide-react';
+import { Layers, GitCommit, ShieldAlert, BarChart3, ClipboardCheck, ArrowLeft } from 'lucide-react';
 
 export default function App() {
   const [filters, setFilters] = useState({
@@ -18,13 +18,26 @@ export default function App() {
     endHour: '24:00'
   });
 
-  const [activeTab, setActiveTab] = useState('map');
+  const [activeTab, setActiveTab] = useState('audit');
   const [activeTripId, setActiveTripId] = useState(null);
   const [processingLogs, setProcessingLogs] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [miningStatus, setMiningStatus] = useState('idle');
   const [isLogicalMode, setIsLogicalMode] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Elevated fleet audit state (avoids duplicate fetch and supplies activeLineName)
+  const [fleetAudit, setFleetAudit] = useState(null);
+  const regimeParam = filters.regime?.includes('20s') || filters.regime?.includes('B') ? 'B' : 'A';
+
+  useEffect(() => {
+    fetch(`/api/fleet-audit?regime=${regimeParam}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setFleetAudit(d))
+      .catch(() => {});
+  }, [regimeParam]);
+
+  const activeLineName = fleetAudit?.lines?.find(l => l.line === filters.line)?.name || null;
 
   // Loaded data states
   const [mapData, setMapData] = useState(null);
@@ -113,137 +126,159 @@ export default function App() {
           setProcessingLogs([]);
           setMiningStatus('idle');
         }}
+        activeTab={activeTab}
       />
 
       {/* Main Content Workspace */}
       <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Top Header / Stats Overview */}
-        <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between flex-shrink-0 shadow-xs">
-          {/* Navigation/Views Tab selectors */}
-          <div className="flex items-center gap-1">
-            <button
-              id="tab-audit"
-              type="button"
-              onClick={() => setActiveTab('audit')}
-              className={`flex items-center gap-1.5 py-2 px-4 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                activeTab === 'audit'
-                  ? 'bg-slate-100 text-slate-800 font-bold'
-                  : 'text-slate-500 hover:bg-slate-50'
-              }`}
-            >
-              <ClipboardCheck className="h-3.5 w-3.5" />
-              <span>Auditoria Diária (CCO)</span>
-            </button>
+        {/* Top Header / Funnel Navigation & Breadcrumbs */}
+        <header className="bg-white border-b border-slate-200 flex flex-col flex-shrink-0 shadow-xs">
+          {/* Row 1: Funnel Navigation Tabs (1 -> 2 -> 3 -> 4 -> 5) */}
+          <div className="h-12 px-6 flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <button
+                id="tab-audit"
+                type="button"
+                onClick={() => setActiveTab('audit')}
+                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
+                  activeTab === 'audit'
+                    ? 'bg-slate-100 text-slate-800 font-bold'
+                    : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                <ClipboardCheck className="h-3.5 w-3.5" />
+                <span>1. Auditoria Diária (CCO)</span>
+              </button>
 
-            <button
-              id="tab-map"
-              type="button"
-              onClick={() => setActiveTab('map')}
-              className={`flex items-center gap-1.5 py-2 px-4 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                activeTab === 'map'
-                  ? 'bg-slate-100 text-slate-800 font-bold'
-                  : 'text-slate-500 hover:bg-slate-50'
-              }`}
-            >
-              <Layers className="h-3.5 w-3.5" />
-              <span>Mapa de Replay</span>
-            </button>
+              <button
+                id="tab-conformance"
+                type="button"
+                onClick={() => setActiveTab('conformance')}
+                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
+                  activeTab === 'conformance'
+                    ? 'bg-slate-100 text-slate-800 font-bold'
+                    : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                <ShieldAlert className="h-3.5 w-3.5" />
+                <span>2. Conformidade Normativa</span>
+              </button>
 
-            <button
-              id="tab-petri"
-              type="button"
-              onClick={() => setActiveTab('petri')}
-              className={`flex items-center gap-1.5 py-2 px-4 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                activeTab === 'petri'
-                  ? 'bg-slate-100 text-slate-800 font-bold'
-                  : 'text-slate-500 hover:bg-slate-50'
-              }`}
-            >
-              <GitCommit className="h-3.5 w-3.5" />
-              <span>Descoberta (Petri Net)</span>
-            </button>
+              <button
+                id="tab-performance"
+                type="button"
+                onClick={() => setActiveTab('performance')}
+                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
+                  activeTab === 'performance'
+                    ? 'bg-slate-100 text-slate-800 font-bold'
+                    : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                <span>3. Gargalos Operacionais (DFG)</span>
+              </button>
 
-            <button
-              id="tab-conformance"
-              type="button"
-              onClick={() => setActiveTab('conformance')}
-              className={`flex items-center gap-1.5 py-2 px-4 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                activeTab === 'conformance'
-                  ? 'bg-slate-100 text-slate-800 font-bold'
-                  : 'text-slate-500 hover:bg-slate-50'
-              }`}
-            >
-              <ShieldAlert className="h-3.5 w-3.5" />
-              <span>Conformidade</span>
-            </button>
+              <button
+                id="tab-map"
+                type="button"
+                onClick={() => setActiveTab('map')}
+                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
+                  activeTab === 'map'
+                    ? 'bg-slate-100 text-slate-800 font-bold'
+                    : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                <Layers className="h-3.5 w-3.5" />
+                <span>4. Mapa de Replay</span>
+              </button>
 
-            <button
-              id="tab-performance"
-              type="button"
-              onClick={() => setActiveTab('performance')}
-              className={`flex items-center gap-1.5 py-2 px-4 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                activeTab === 'performance'
-                  ? 'bg-slate-100 text-slate-800 font-bold'
-                  : 'text-slate-500 hover:bg-slate-50'
-              }`}
-            >
-              <BarChart3 className="h-3.5 w-3.5" />
-              <span>Desempenho (DFG)</span>
-            </button>
+              <button
+                id="tab-petri"
+                type="button"
+                onClick={() => setActiveTab('petri')}
+                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
+                  activeTab === 'petri'
+                    ? 'bg-slate-100 text-slate-800 font-bold'
+                    : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                <GitCommit className="h-3.5 w-3.5" />
+                <span>5. Descoberta de Processos</span>
+              </button>
+            </div>
           </div>
 
-          {/* Active Operational Context Badge */}
-          <div className="hidden xl:flex items-center gap-2 bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-lg text-xs">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                filters.regime?.includes('20s') || filters.regime?.includes('B')
-                  ? 'bg-indigo-500'
-                  : 'bg-amber-500'
-              }`}
-            />
-            <span className="font-bold text-slate-800">
-              Linha {filters.line}
-            </span>
-            <span className="text-slate-300">•</span>
-            <span className="font-semibold text-slate-600">
-              {filters.direction}
-            </span>
-            <span className="text-slate-300">•</span>
-            <span className="text-slate-500 text-[11px]">
-              {filters.startDate === filters.endDate
-                ? filters.startDate.split('-').reverse().join('/')
-                : `${filters.startDate.split('-').reverse().join('/')} a ${filters.endDate.split('-').reverse().join('/')}`}
-            </span>
-            <span
-              className={`px-1.5 py-0.5 text-[10px] font-extrabold rounded ${
-                filters.regime?.includes('20s') || filters.regime?.includes('B')
-                  ? 'bg-indigo-100 text-indigo-700'
-                  : 'bg-amber-100 text-amber-800'
-              }`}
-            >
-              {filters.regime?.includes('20s') || filters.regime?.includes('B')
-                ? 'Regime B (20s)'
-                : 'Regime A (2m)'}
-            </span>
-          </div>
+          {/* Row 2: Contextual Breadcrumb & Quick Metrics */}
+          <div className="h-10 px-6 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+            {activeTab === 'audit' ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-700">
+                  Visão Geral da Frota URBS — Painel Executivo CCO
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800">
+                  Regime {regimeParam}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 overflow-x-auto py-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('audit')}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-blue-600 transition-colors shadow-xs mr-2"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  <span>Voltar à Frota</span>
+                </button>
 
-          {/* Quick Metrics display */}
-          <div className="flex items-center gap-6 text-xs border-l border-slate-100 pl-6 h-8">
-            {conformanceData && (
-              <>
+                <div className="flex items-center gap-1.5 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('audit')}
+                    className="text-slate-400 hover:text-slate-600 font-medium transition-colors"
+                  >
+                    Auditoria CCO
+                  </button>
+                  <span className="text-slate-300">›</span>
+                  <span className="font-semibold text-slate-800">
+                    Linha {filters.line} {activeLineName ? `(${activeLineName})` : ''}
+                  </span>
+                  <span className="text-slate-300">›</span>
+                  <span className="font-semibold text-blue-700">
+                    {filters.direction}
+                  </span>
+                  <span className="text-slate-300">›</span>
+                  <span className="text-slate-500 font-mono">
+                    {filters.startDate === filters.endDate
+                      ? filters.startDate.split('-').reverse().join('/')
+                      : `${filters.startDate.split('-').reverse().join('/')} a ${filters.endDate.split('-').reverse().join('/')}`}
+                  </span>
+                  <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded bg-blue-100 text-blue-800">
+                    Regime {regimeParam}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Quick Metrics display (active when on line-specific tabs) */}
+            {activeTab !== 'audit' && conformanceData && (
+              <div className="flex items-center gap-4 text-xs">
                 <div className="flex flex-col text-right">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fitness</span>
-                  <span className="font-extrabold text-slate-700">{conformanceData.avg_fitness ? conformanceData.avg_fitness.toFixed(3) : '0.000'}</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Fitness</span>
+                  <span className="font-extrabold text-slate-700">
+                    {conformanceData.avg_fitness ? conformanceData.avg_fitness.toFixed(3) : '0.000'}
+                  </span>
                 </div>
                 <div className="flex flex-col text-right">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Conformidade</span>
-                  <span className="font-extrabold text-slate-700">{conformanceData.fit_percentage ? conformanceData.fit_percentage.toFixed(1) : '0.0'}%</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Conformidade</span>
+                  <span className="font-extrabold text-slate-700">
+                    {conformanceData.fit_percentage ? conformanceData.fit_percentage.toFixed(1) : '0.0'}%
+                  </span>
                 </div>
                 <div className="flex flex-col text-right">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Viagens</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Viagens</span>
                   <span className="font-extrabold text-slate-700">{conformanceData.total_cases || 0}</span>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </header>
@@ -252,10 +287,25 @@ export default function App() {
         <div className="flex-1 min-h-0 relative">
           {activeTab === 'audit' && (
             <FleetAuditView
-              filters={filters}
+              auditData={fleetAudit}
               setFilters={setFilters}
               setActiveTab={setActiveTab}
             />
+          )}
+
+          {activeTab === 'conformance' && (
+            <ConformanceInspector
+              conformanceData={conformanceData}
+              onTripSelect={(id) => {
+                setActiveTripId(id);
+                setActiveTab('map');
+              }}
+              onNavigate={(tab) => setActiveTab(tab)}
+            />
+          )}
+
+          {activeTab === 'performance' && (
+            <BottleneckProfiler performanceData={performanceData} />
           )}
 
           {activeTab === 'map' && (
@@ -273,16 +323,9 @@ export default function App() {
           {activeTab === 'petri' && (
             <ProcessVisualizer petriNetData={petriNetData} />
           )}
-
-          {activeTab === 'conformance' && (
-            <ConformanceInspector conformanceData={conformanceData} onTripSelect={(id) => { setActiveTripId(id); setActiveTab('map'); }} />
-          )}
-
-          {activeTab === 'performance' && (
-            <BottleneckProfiler performanceData={performanceData} />
-          )}
         </div>
       </main>
     </div>
   );
 }
+

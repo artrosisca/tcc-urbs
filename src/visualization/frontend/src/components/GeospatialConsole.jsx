@@ -423,6 +423,22 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
               <span>{totalTripsCount} viagens</span>
             </div>
           </div>
+
+          {/* Active trip banner */}
+          {activeTripId && (
+            <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-200 px-2.5 py-1.5 rounded-lg mt-2">
+              <span className="text-[10px] font-bold text-blue-800 truncate" title={activeTripId}>
+                Viagem sob análise: {activeTripId}
+              </span>
+              <button
+                type="button"
+                onClick={onClearTrip}
+                className="flex items-center gap-1 text-[10px] font-semibold text-blue-700 hover:text-blue-900 whitespace-nowrap"
+              >
+                <X className="h-3 w-3" /> Ver todas as viagens
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Legend */}

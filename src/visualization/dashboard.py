@@ -71,8 +71,14 @@ def get_common_lines(data_dir="data/dados_em_tempo_real_2026"):
     adapter.processed_dir = data_dir
     return adapter.list_available_lines()
 
-# Helper to filter DataFrame by start_hour and end_hour query params
-def filter_df_by_hours(df: pd.DataFrame, start_hour: str = None, end_hour: str = None) -> pd.DataFrame:
+# Helper to filter DataFrame by start_hour and end_hour query params (and optionally date range)
+def filter_df_by_hours(
+    df: pd.DataFrame, 
+    start_hour: str = None, 
+    end_hour: str = None,
+    start_date: str = None,
+    end_date: str = None
+) -> pd.DataFrame:
     if df.empty:
         return df
     
@@ -81,6 +87,13 @@ def filter_df_by_hours(df: pd.DataFrame, start_hour: str = None, end_hour: str =
     if 'concept:name' in df.columns:
         df['concept:name'] = df['concept:name'].apply(_fix_encoding)
     
+    if start_date and end_date:
+        try:
+            df = df[(df['time:timestamp'] >= pd.Timestamp(f"{start_date} 00:00:00")) &
+                    (df['time:timestamp'] <= pd.Timestamp(f"{end_date} 23:59:59"))]
+        except Exception as e:
+            print(f"Erro ao filtrar datas ({start_date} - {end_date}): {str(e)}")
+            
     if start_hour and end_hour:
         try:
             if end_hour.startswith("24:00") or end_hour == "24:00":
@@ -259,7 +272,7 @@ def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VO
                 }
             }
             
-        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
+        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour, start_date=start_date, end_date=end_date)
         chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
         sentido_static, stops_filtered, shape_filtered = TrajectoryReconstructor.resolve_route_geometry(
@@ -345,7 +358,7 @@ def get_discovery(line: str, start_date: str, end_date: str, direction: str = "V
         
     try:
         df_log_raw = pd.read_csv(csv_path)
-        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
+        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour, start_date=start_date, end_date=end_date)
         chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
         if df_log_dir.empty:
@@ -367,7 +380,7 @@ def get_conformance(line: str, start_date: str, end_date: str, direction: str = 
         
     try:
         df_log_raw = pd.read_csv(csv_path)
-        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
+        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour, start_date=start_date, end_date=end_date)
         chosen_dir, _ = resolve_direction_subset(df_log, direction)
         static_data = load_static_data(start_date, line)
         return ProcessMiningEngine.evaluate_conformance(df_log, static_data['pontos'], direction=chosen_dir)
@@ -385,7 +398,7 @@ def get_performance(line: str, start_date: str, end_date: str, direction: str = 
         
     try:
         df_log_raw = pd.read_csv(csv_path)
-        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
+        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour, start_date=start_date, end_date=end_date)
         chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
         if df_log_dir.empty:
@@ -407,7 +420,7 @@ def get_discovery_json(line: str, start_date: str, end_date: str, direction: str
         
     try:
         df_log_raw = pd.read_csv(csv_path)
-        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
+        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour, start_date=start_date, end_date=end_date)
         chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
         if df_log_dir.empty:
@@ -428,7 +441,7 @@ def get_performance_json(line: str, start_date: str, end_date: str, direction: s
         
     try:
         df_log_raw = pd.read_csv(csv_path)
-        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour)
+        df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour, start_date=start_date, end_date=end_date)
         chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
         if df_log_dir.empty:

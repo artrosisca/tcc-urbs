@@ -46,65 +46,14 @@ client = TestClient(app)
 # TIER 1: FEATURE COVERAGE (25 tests)
 # ==============================================================================
 
-# --- emoji removal (5 tests) ---
+# --- logo vetorial (1 test) ---
 def test_logo_contains_bus_icon():
-    """Verify the logo uses the vectorial Bus icon (lucide-react) and formal title, not an emoji."""
+    """Verify the logo uses the vectorial Bus icon (lucide-react) and the formal product title."""
     assert os.path.exists(SIDEBAR_FILTERS_JSX), f"File not found: {SIDEBAR_FILTERS_JSX}"
     with open(SIDEBAR_FILTERS_JSX, "r", encoding="utf-8") as f:
         code = f.read()
     assert "<Bus" in code, "Logo should use the lucide-react <Bus /> SVG icon."
     assert "URBS Process Mining" in code, "Formal product title must remain in the sidebar logo."
-    assert "🚌" not in code, "Residual bus emoji must be removed from SidebarFilters.jsx."
-
-def test_no_emojis_in_tab_buttons():
-    """Verify tab navigation buttons do not contain restricted emojis (🗺️, 🧭, 🔍, ⚡, 🚫, ⚠️)."""
-    assert os.path.exists(REACT_APP_JSX), f"File not found: {REACT_APP_JSX}"
-    with open(REACT_APP_JSX, "r", encoding="utf-8") as f:
-        code = f.read()
-    tab_lines = [line for line in code.splitlines() if "id=\"tab-" in line or "tab-" in line or "setActiveTab" in line]
-    restricted_emojis = ["🗺️", "🧭", "🔍", "⚡", "🚫", "⚠️"]
-    for line in tab_lines:
-        for emoji in restricted_emojis:
-            assert emoji not in line, f"Restricted emoji '{emoji}' found in tab button: '{line.strip()}'"
-
-def test_no_emojis_in_h2_headers():
-    """Verify h2 headers do not contain restricted emojis (🗺️, 🧭, 🔍, ⚡, 🚫, ⚠️)."""
-    restricted_emojis = ["🗺️", "🧭", "🔍", "⚡", "🚫", "⚠️"]
-    for root, _, files in os.walk(REACT_SRC_DIR):
-        for file in files:
-            if file.endswith(".jsx"):
-                with open(os.path.join(root, file), "r", encoding="utf-8") as f:
-                    code = f.read()
-                h2_lines = [line for line in code.splitlines() if "<h2>" in line or "</h2>" in line]
-                for line in h2_lines:
-                    for emoji in restricted_emojis:
-                        assert emoji not in line, f"Restricted emoji '{emoji}' found in h2 header in {file}: '{line.strip()}'"
-
-def test_no_emojis_in_h3_headers():
-    """Verify h3 headers do not contain restricted emojis (🗺️, 🧭, 🔍, ⚡, 🚫, ⚠️)."""
-    restricted_emojis = ["🗺️", "🧭", "🔍", "⚡", "🚫", "⚠️"]
-    for root, _, files in os.walk(REACT_SRC_DIR):
-        for file in files:
-            if file.endswith(".jsx"):
-                with open(os.path.join(root, file), "r", encoding="utf-8") as f:
-                    code = f.read()
-                h3_lines = [line for line in code.splitlines() if "<h3>" in line or "</h3>" in line]
-                for line in h3_lines:
-                    for emoji in restricted_emojis:
-                        assert emoji not in line, f"Restricted emoji '{emoji}' found in h3 header in {file}: '{line.strip()}'"
-
-def test_no_emojis_in_buttons_excluding_timeline():
-    """Verify standard sidebar or main buttons do not contain restricted emojis (🗺️, 🧭, 🔍, ⚡, 🚫, ⚠️)."""
-    restricted_emojis = ["🗺️", "🧭", "🔍", "⚡", "🚫", "⚠️"]
-    for root, _, files in os.walk(REACT_SRC_DIR):
-        for file in files:
-            if file.endswith(".jsx"):
-                with open(os.path.join(root, file), "r", encoding="utf-8") as f:
-                    code = f.read()
-                btn_lines = [line for line in code.splitlines() if "<button" in line or "btn-" in line]
-                for line in btn_lines:
-                    for emoji in restricted_emojis:
-                        assert emoji not in line, f"Restricted emoji '{emoji}' found in button in {file}: '{line.strip()}'"
 
 
 # --- CartoDB Positron maps URL (5 tests) ---

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Activity, ChevronRight } from 'lucide-react';
+import InfoPopover from './InfoPopover';
 
 export default function FleetAuditView({ auditData, loading, setFilters, setActiveTab }) {
   const handleInspectLine = (lineCode, targetDir = null) => {
@@ -48,12 +49,12 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
       {/* Title & Scope Header */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-5">
         <div>
-          <h2 className="text-lg font-bold text-slate-800 tracking-tight">
+          <h2 className="text-lg font-bold text-slate-800 tracking-tight flex items-center gap-2">
             Auditoria Operacional Diária — CCO URBS
+            <InfoPopover title="Auditoria Operacional Diária">
+              Painel executivo de encerramento do dia para fiscalização de itinerário, pontualidade e paradas omitidas.
+            </InfoPopover>
           </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            Painel executivo de encerramento do dia para fiscalização de itinerário, pontualidade e paradas omitidas
-          </p>
         </div>
         <div className="flex items-center gap-2">
           {loading && (
@@ -74,27 +75,43 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
       {/* Global Fleet KPIs */}
       <div className="grid grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Linhas Monitoradas</div>
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            Linhas Monitoradas
+            <InfoPopover title="Linhas Monitoradas">
+              Arquétipos operacionais com log de eventos processado dentro do período selecionado.
+            </InfoPopover>
+          </div>
           <div className="text-2xl font-black text-slate-800 mt-1">{summary.total_lines}</div>
-          <div className="text-[11px] text-slate-500 mt-1">Arquétipos operacionais auditados</div>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Viagens Totais Auditadas</div>
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            Viagens Totais Auditadas
+            <InfoPopover title="Viagens Totais Auditadas">
+              Viagens (casos) mineradas no período, somando todos os sentidos (IDA+VOLTA ou CIRCULAR).
+            </InfoPopover>
+          </div>
           <div className="text-2xl font-black text-blue-600 mt-1">{summary.total_trips_audited.toLocaleString('pt-BR')}</div>
-          <div className="text-[11px] text-slate-500 mt-1">Casos minerados no período (ambos os sentidos)</div>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Aderência Média da Frota</div>
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            Aderência Média da Frota
+            <InfoPopover title="Aderência Média da Frota">
+              Trace fitness médio (Token-Based Replay, PM4Py) ponderado pelo número de viagens de cada linha.
+            </InfoPopover>
+          </div>
           <div className="text-2xl font-black text-emerald-600 mt-1">{summary.avg_fleet_adherence ?? summary.avg_fleet_conformance}%</div>
-          <div className="text-[11px] text-slate-500 mt-1">Aderência normativa ao traçado</div>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Paradas Omitidas Detectadas</div>
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            Paradas Omitidas Detectadas
+            <InfoPopover title="Paradas Omitidas">
+              Paradas planejadas sem evento de passagem no buffer de proximidade (150 m), somadas em todas as viagens do período.
+            </InfoPopover>
+          </div>
           <div className="text-2xl font-black text-amber-600 mt-1">{summary.total_skipped_stops.toLocaleString('pt-BR')}</div>
-          <div className="text-[11px] text-slate-500 mt-1">Pontos não visitados (&gt;150m)</div>
         </div>
       </div>
 
@@ -102,10 +119,12 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-800">
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
               Diagnóstico Operacional por Linha de Transporte
+              <InfoPopover title="Diagnóstico por Linha">
+                Classificação de conformidade e gargalos estruturais identificados
+              </InfoPopover>
             </h3>
-            <p className="text-xs text-slate-400">Classificação de conformidade e gargalos estruturais identificados</p>
           </div>
         </div>
 

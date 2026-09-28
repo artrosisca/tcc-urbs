@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldAlert, CheckCircle, Percent, Activity, Compass } from 'lucide-react';
+import InfoPopover from './InfoPopover';
 
 export default function ConformanceInspector({ conformanceData, isLoading, activeDirection, onTripSelect }) {
   if (!conformanceData) {
@@ -33,8 +34,12 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
       )}
 
       <div>
-        <h2 className="text-sm font-bold text-slate-800">Inspetor de Conformidade Normativa Topológica</h2>
-        <p className="text-xs text-slate-500">Estimativa estatística de aderência ao traçado planejado e detecção de paradas omitidas</p>
+        <h2 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+          Inspetor de Conformidade Normativa Topológica
+          <InfoPopover title="Conformidade Normativa">
+            Estimativa estatística de aderência ao traçado planejado e detecção de paradas omitidas
+          </InfoPopover>
+        </h2>
       </div>
 
       {/* KPI Cards Grid */}
@@ -44,7 +49,12 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
             <Percent className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fitness Médio</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              Fitness Médio
+              <InfoPopover title="Fitness Médio">
+                Média do trace fitness (0–1) via Token-Based Replay (PM4Py): fração dos eventos que seguem estritamente a sequência normativa de paradas.
+              </InfoPopover>
+            </div>
             {isLoading
               ? <div className="h-7 w-20 bg-slate-200 animate-pulse rounded-md" />
               : <div className="text-xl font-extrabold text-slate-800">{avg_fitness ? avg_fitness.toFixed(3) : '0.000'}</div>}
@@ -56,7 +66,12 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
             <CheckCircle className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Viagens Conformantes</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              Viagens Conformantes
+              <InfoPopover title="Viagens Conformantes">
+                Percentual de viagens com replay 100% conforme — sem tokens faltantes ou remanescentes no modelo normativo.
+              </InfoPopover>
+            </div>
             {isLoading
               ? <div className="h-7 w-20 bg-slate-200 animate-pulse rounded-md" />
               : <div className="text-xl font-extrabold text-slate-800">{fit_percentage ? fit_percentage.toFixed(1) : '0.0'}%</div>}
@@ -68,7 +83,12 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
             <Activity className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total de Casos</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              Total de Casos
+              <InfoPopover title="Total de Casos">
+                Viagens avaliadas no escopo atual (linha, sentido, período e filtros ativos).
+              </InfoPopover>
+            </div>
             {isLoading
               ? <div className="h-7 w-20 bg-slate-200 animate-pulse rounded-md" />
               : <div className="text-xl font-extrabold text-slate-800">{total_cases || 0}</div>}
@@ -80,7 +100,12 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
             <ShieldAlert className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Paradas Puladas</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              Paradas Puladas
+              <InfoPopover title="Paradas Puladas">
+                Paradas planejadas sem evento de passagem na viagem — indício de evasão de itinerário ou de gap de GPS (cruzar com Incerteza GPS).
+              </InfoPopover>
+            </div>
             {isLoading
               ? <div className="h-7 w-20 bg-slate-200 animate-pulse rounded-md" />
               : (
@@ -96,7 +121,12 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
             <Compass className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Incerteza GPS (Interpoladas)</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              Incerteza GPS (Interpoladas)
+              <InfoPopover title="Incerteza GPS">
+                Eventos com horário estimado por interpolação (PCHIP) em falhas de amostragem do GPS; representam incerteza de medição, não desvio operacional.
+              </InfoPopover>
+            </div>
             {isLoading
               ? <div className="h-7 w-20 bg-slate-200 animate-pulse rounded-md" />
               : <div className="text-xl font-extrabold text-slate-800">{displayInterpolated}</div>}

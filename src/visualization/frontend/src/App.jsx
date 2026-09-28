@@ -7,18 +7,55 @@ import BottleneckProfiler from './components/BottleneckProfiler';
 import FleetAuditView from './components/FleetAuditView';
 import { Layers, GitCommit, ShieldAlert, BarChart3, ClipboardCheck, ArrowLeft } from 'lucide-react';
 
-export default function App() {
-  const [filters, setFilters] = useState({
-    regime: 'Regime B (20s)',
-    line: '541',
-    direction: 'VOLTA',
-    startDate: '2025-12-02',
-    endDate: '2025-12-08',
-    startHour: '00:00',
-    endHour: '24:00'
-  });
+const STORAGE_FILTERS_KEY = 'urbs_pm_filters';
+const STORAGE_TAB_KEY = 'urbs_pm_active_tab';
 
-  const [activeTab, setActiveTab] = useState('audit');
+const DEFAULT_FILTERS = {
+  regime: 'Regime B (20s)',
+  line: '541',
+  direction: 'VOLTA',
+  startDate: '2025-12-02',
+  endDate: '2025-12-08',
+  startHour: '00:00',
+  endHour: '24:00'
+};
+
+function getSavedFilters() {
+  try {
+    const raw = localStorage.getItem(STORAGE_FILTERS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { ...DEFAULT_FILTERS, ...parsed };
+    }
+  } catch {}
+  return DEFAULT_FILTERS;
+}
+
+function getSavedTab() {
+  try {
+    const raw = localStorage.getItem(STORAGE_TAB_KEY);
+    if (raw && ['audit', 'conformance', 'performance', 'map', 'petri'].includes(raw)) {
+      return raw;
+    }
+  } catch {}
+  return 'audit';
+}
+
+export default function App() {
+  const [filters, setFilters] = useState(getSavedFilters);
+  const [activeTab, setActiveTab] = useState(getSavedTab);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_FILTERS_KEY, JSON.stringify(filters));
+    } catch {}
+  }, [filters]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_TAB_KEY, activeTab);
+    } catch {}
+  }, [activeTab]);
   const [activeTripId, setActiveTripId] = useState(null);
   const [processingLogs, setProcessingLogs] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -260,24 +297,34 @@ export default function App() {
             )}
 
             {/* Quick Metrics display (active when on line-specific tabs) */}
-            {activeTab !== 'audit' && conformanceData && (
-              <div className="flex items-center gap-4 text-xs">
-                <div className="flex flex-col text-right">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Fitness</span>
-                  <span className="font-extrabold text-slate-700">
-                    {conformanceData.avg_fitness ? conformanceData.avg_fitness.toFixed(3) : '0.000'}
-                  </span>
-                </div>
-                <div className="flex flex-col text-right">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Conformidade</span>
-                  <span className="font-extrabold text-slate-700">
-                    {conformanceData.fit_percentage ? conformanceData.fit_percentage.toFixed(1) : '0.0'}%
-                  </span>
-                </div>
-                <div className="flex flex-col text-right">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Viagens</span>
-                  <span className="font-extrabold text-slate-700">{conformanceData.total_cases || 0}</span>
-                </div>
+            {activeTab !== 'audit' && (
+              <div className="flex items-center gap-4 text-xs transition-opacity duration-200">
+                {isLoading && (
+                  <div className="flex items-center gap-1.5 text-blue-600 font-semibold text-[11px] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200 shadow-2xs">
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-300 border-t-blue-700"></div>
+                    <span>Atualizando {filters.direction}...</span>
+                  </div>
+                )}
+                {conformanceData && (
+                  <>
+                    <div className="flex flex-col text-right">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Fitness</span>
+                      <span className="font-extrabold text-slate-700">
+                        {conformanceData.avg_fitness ? conformanceData.avg_fitness.toFixed(3) : '0.000'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col text-right">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Conformidade</span>
+                      <span className="font-extrabold text-slate-700">
+                        {conformanceData.fit_percentage ? conformanceData.fit_percentage.toFixed(1) : '0.0'}%
+                      </span>
+                    </div>
+                    <div className="flex flex-col text-right">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Viagens</span>
+                      <span className="font-extrabold text-slate-700">{conformanceData.total_cases || 0}</span>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -296,6 +343,8 @@ export default function App() {
           {activeTab === 'conformance' && (
             <ConformanceInspector
               conformanceData={conformanceData}
+              isLoading={isLoading}
+              activeDirection={filters.direction}
               onTripSelect={(id) => {
                 setActiveTripId(id);
                 setActiveTab('map');

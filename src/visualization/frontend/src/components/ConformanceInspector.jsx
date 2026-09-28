@@ -1,8 +1,18 @@
 import React from 'react';
 import { ShieldAlert, CheckCircle, Percent, Activity, Compass } from 'lucide-react';
 
-export default function ConformanceInspector({ conformanceData, onTripSelect, onNavigate }) {
+export default function ConformanceInspector({ conformanceData, isLoading, activeDirection, onTripSelect, onNavigate }) {
   if (!conformanceData) {
+    if (isLoading) {
+      return (
+        <div className="w-full h-full bg-slate-50 flex flex-col items-center justify-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600"></div>
+          <span className="text-xs font-semibold text-slate-500">
+            Calculando conformidade normativa ({activeDirection || 'carregando'})...
+          </span>
+        </div>
+      );
+    }
     return (
       <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-400 text-xs">
         Sem dados de conformidade carregados. Execute a mineração.
@@ -15,6 +25,13 @@ export default function ConformanceInspector({ conformanceData, onTripSelect, on
 
   return (
     <div className="w-full h-full bg-slate-50 flex flex-col p-6 overflow-y-auto space-y-6">
+      {isLoading && (
+        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium shadow-xs">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-300 border-t-blue-700 flex-shrink-0"></div>
+          <span>Atualizando métricas de conformidade para o sentido <strong>{activeDirection}</strong>... Aguarde um instante.</span>
+        </div>
+      )}
+
       <div>
         <h2 className="text-sm font-bold text-slate-800">Inspetor de Conformidade Normativa Topológica</h2>
         <p className="text-xs text-slate-500">Estimativa estatística de aderência ao traçado planejado e detecção de paradas omitidas</p>

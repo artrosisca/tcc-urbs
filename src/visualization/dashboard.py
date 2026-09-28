@@ -560,6 +560,15 @@ def get_fleet_audit(regime: str = "B"):
                 else:
                     status = "CRÍTICO"
 
+            skipped_by_direction = {
+                dir_name: sum(s.get("count", 0) for s in dir_res.get("skipped_stops", []))
+                for dir_name, dir_res in per_dir.items()
+            }
+            cases_by_direction = {
+                dir_name: int(dir_res.get("total_cases", 0))
+                for dir_name, dir_res in per_dir.items()
+            }
+
             fleet_lines.append({
                 "line": l,
                 "name": line_names.get(l, f"Linha {l}"),
@@ -568,6 +577,8 @@ def get_fleet_audit(regime: str = "B"):
                 "avg_fitness": avg_fit,
                 "adherence_pct": adherence_pct,
                 "skipped_stops_count": skipped_stops_count,
+                "skipped_by_direction": skipped_by_direction,
+                "cases_by_direction": cases_by_direction,
                 "bottlenecks_count": bottlenecks_count,
                 "status": status,
                 "direction": direction_scope

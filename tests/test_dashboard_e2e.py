@@ -657,7 +657,9 @@ def test_api_fleet_audit_regime_b_aggregated():
     """
     # Clear cache if any
     from src.visualization.dashboard import _fleet_audit_cache
-    _fleet_audit_cache.pop("B", None)
+    for k in list(_fleet_audit_cache):
+        if k.startswith("B"):
+            _fleet_audit_cache.pop(k, None)
 
     res = client.get("/api/fleet-audit?regime=B")
     assert res.status_code == 200
@@ -676,4 +678,25 @@ def test_api_fleet_audit_regime_b_aggregated():
         assert line_info["total_cases"] > 0
         # In Regime B, skipped stops must not be pathological (should be bounded)
         assert line_info["skipped_stops_count"] < line_info["total_cases"] * 100
+
+
+def test_fleet_audit_explicit_date_range_single_day():
+    """Auditoria filtrada por dia deve ter escopo reduzido e cache isolado da semana."""
+    from src.visualization.dashboard import _fleet_audit_cache
+    _fleet_audit_cache.clear()
+    week = client.get("/api/fleet-audit?regime=B").json()
+    day = client.get("/api/fleet-audit?regime=B&start_date=2025-12-02&end_date=2025-12-02").json()
+    assert day["date_range"] == "2025-12-02 a 2025-12-02"
+    assert day["summary"]["total_trips_audited"] <= week["summary"]["total_trips_audited"]
+    week2 = client.get("/api/fleet-audit?regime=B").json()
+    assert week2 == week  # cache da semana não foi poluído pelo filtro de dia
+
+
+def test_dashboard_overview_excludes_conformance():
+    """Overview serve apenas o caminho pesado; conformidade é endpoint dedicado."""
+    res = client.get("/api/dashboard-overview?line=541&start_date=2025-12-02&end_date=2025-12-08&direction=VOLTA")
+    assert res.status_code == 200
+    body = res.json()
+    assert "map_data" in body and "discovery" in body and "performance" in body
+    assert "conformance" not in body
 

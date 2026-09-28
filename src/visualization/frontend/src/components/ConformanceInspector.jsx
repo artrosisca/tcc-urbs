@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldAlert, CheckCircle, Percent, Activity, Compass } from 'lucide-react';
 
-export default function ConformanceInspector({ conformanceData, isLoading, activeDirection, onTripSelect, onNavigate }) {
+export default function ConformanceInspector({ conformanceData, isLoading, activeDirection, onTripSelect }) {
   if (!conformanceData) {
     if (isLoading) {
       return (
@@ -38,14 +38,16 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className={`grid grid-cols-5 gap-4 transition-opacity duration-200 ${isLoading ? 'opacity-40 pointer-events-none' : ''}`}>
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
           <div className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
             <Percent className="h-5 w-5" />
           </div>
           <div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fitness Médio</div>
-            <div className="text-xl font-extrabold text-slate-800">{avg_fitness ? avg_fitness.toFixed(3) : '0.000'}</div>
+            {isLoading
+              ? <div className="h-7 w-20 bg-slate-200 animate-pulse rounded-md" />
+              : <div className="text-xl font-extrabold text-slate-800">{avg_fitness ? avg_fitness.toFixed(3) : '0.000'}</div>}
           </div>
         </div>
 
@@ -55,7 +57,9 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
           </div>
           <div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Viagens Conformantes</div>
-            <div className="text-xl font-extrabold text-slate-800">{fit_percentage ? fit_percentage.toFixed(1) : '0.0'}%</div>
+            {isLoading
+              ? <div className="h-7 w-20 bg-slate-200 animate-pulse rounded-md" />
+              : <div className="text-xl font-extrabold text-slate-800">{fit_percentage ? fit_percentage.toFixed(1) : '0.0'}%</div>}
           </div>
         </div>
 
@@ -65,7 +69,9 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
           </div>
           <div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total de Casos</div>
-            <div className="text-xl font-extrabold text-slate-800">{total_cases || 0}</div>
+            {isLoading
+              ? <div className="h-7 w-20 bg-slate-200 animate-pulse rounded-md" />
+              : <div className="text-xl font-extrabold text-slate-800">{total_cases || 0}</div>}
           </div>
         </div>
 
@@ -75,9 +81,13 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
           </div>
           <div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Paradas Puladas</div>
-            <div className="text-xl font-extrabold text-slate-800">
-              {skipped_stops ? skipped_stops.reduce((acc, curr) => acc + curr.count, 0) : 0}
-            </div>
+            {isLoading
+              ? <div className="h-7 w-20 bg-slate-200 animate-pulse rounded-md" />
+              : (
+                <div className="text-xl font-extrabold text-slate-800">
+                  {skipped_stops ? skipped_stops.reduce((acc, curr) => acc + curr.count, 0) : 0}
+                </div>
+              )}
           </div>
         </div>
 
@@ -87,15 +97,15 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
           </div>
           <div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Incerteza GPS (Interpoladas)</div>
-            <div className="text-xl font-extrabold text-slate-800">
-              {displayInterpolated}
-            </div>
+            {isLoading
+              ? <div className="h-7 w-20 bg-slate-200 animate-pulse rounded-md" />
+              : <div className="text-xl font-extrabold text-slate-800">{displayInterpolated}</div>}
           </div>
         </div>
       </div>
 
       {/* Main Content Split Panels */}
-      <div className="grid grid-cols-5 gap-6 flex-1 min-h-0">
+      <div className={`grid grid-cols-5 gap-6 flex-1 min-h-0 transition-opacity duration-200 ${isLoading ? 'opacity-40 pointer-events-none' : ''}`}>
         {/* Left Side: Deviant Trips Table (3 cols) */}
         <div className="col-span-3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col min-h-[300px]">
           <div className="p-4 border-b border-slate-200">
@@ -189,24 +199,6 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
             )}
           </div>
         </div>
-      </div>
-
-      {/* Quick Navigation Footer Links */}
-      <div className="flex items-center justify-end gap-4 pt-3 border-t border-slate-200 text-xs font-semibold flex-shrink-0">
-        <button
-          type="button"
-          onClick={() => onNavigate && onNavigate('performance')}
-          className="text-blue-600 hover:text-blue-800 transition-colors"
-        >
-          Ver Gargalos DFG desta linha →
-        </button>
-        <button
-          type="button"
-          onClick={() => onNavigate && onNavigate('petri')}
-          className="text-blue-600 hover:text-blue-800 transition-colors"
-        >
-          Ver Rede de Petri →
-        </button>
       </div>
     </div>
   );

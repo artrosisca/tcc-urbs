@@ -1,5 +1,6 @@
 import time
 import os
+import re
 import sys
 import queue
 import threading
@@ -467,13 +468,11 @@ def get_dashboard_overview(line: str, start_date: str, end_date: str, direction:
     try:
         map_data = get_map_data(line, start_date, end_date, direction, start_hour, end_hour)
         discovery_svg = get_discovery(line, start_date, end_date, direction, start_hour, end_hour).body.decode("utf-8")
-        conformance = get_conformance(line, start_date, end_date, direction, start_hour, end_hour)
         performance = get_performance(line, start_date, end_date, direction, start_hour, end_hour).body.decode("utf-8")
 
         result = {
             "map_data": map_data,
             "discovery": discovery_svg,
-            "conformance": conformance,
             "performance": performance
         }
         set_dashboard_cache(cache_key, result)
@@ -485,14 +484,15 @@ def get_dashboard_overview(line: str, start_date: str, end_date: str, direction:
 # -----------------------
 
 @app.get("/api/fleet-audit")
-def get_fleet_audit(regime: str = "B"):
-    if regime in _fleet_audit_cache:
-        return _fleet_audit_cache[regime]
+def get_fleet_audit(regime: str = "B", start_date: str = None, end_date: str = None):
+    eff_start = start_date or ('2025-10-24' if regime == 'A' else '2025-12-02')
+    eff_end = end_date or ('2025-10-30' if regime == 'A' else '2025-12-08')
+    cache_key = f"{regime}_{eff_start}_{eff_end}"
+    if cache_key in _fleet_audit_cache:
+        return _fleet_audit_cache[cache_key]
 
     lines = default_telemetry_repo.list_available_lines(regime=regime)
-    
-    start_date = '2025-10-24' if regime == 'A' else '2025-12-02'
-    end_date = '2025-10-30' if regime == 'A' else '2025-12-08'
+
     fleet_lines = []
     line_names = {
         "010": "Interbairros I (Circular)",
@@ -505,20 +505,24 @@ def get_fleet_audit(regime: str = "B"):
         files = glob.glob(f"data/dados_processados/event_log_{l}_*.csv")
         if not files:
             continue
-        
+
         valid_files = []
         for f in files:
-            if regime == "A" and "2025-10" in f:
+            m = re.search(r"event_log_.+_(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})\.csv$", f)
+            if m and m.group(1) <= eff_end and m.group(2) >= eff_start:
                 valid_files.append(f)
-            elif regime == "B" and "2025-12" in f:
-                valid_files.append(f)
-                
+
         if not valid_files:
             continue
-            
+
         csv_path = sorted(valid_files)[-1]
         try:
             df = pd.read_csv(csv_path)
+            df['time:timestamp'] = pd.to_datetime(df['time:timestamp'])
+            df = df[(df['time:timestamp'] >= pd.Timestamp(f"{eff_start} 00:00:00")) &
+                    (df['time:timestamp'] <= pd.Timestamp(f"{eff_end} 23:59:59"))]
+            if df.empty:
+                continue
             static_data = load_static_data('2025-10-24' if regime == 'A' else '2025-12-02', l)
             stops_df = static_data.get('pontos', pd.DataFrame())
 
@@ -593,7 +597,7 @@ def get_fleet_audit(regime: str = "B"):
     
     result = {
         "regime": regime,
-        "date_range": f"{start_date} a {end_date}",
+        "date_range": f"{eff_start} a {eff_end}",
         "summary": {
             "total_lines": len(fleet_lines),
             "total_trips_audited": total_trips,
@@ -603,7 +607,7 @@ def get_fleet_audit(regime: str = "B"):
         },
         "lines": fleet_lines
     }
-    _fleet_audit_cache[regime] = result
+    _fleet_audit_cache[cache_key] = result
     return result
 
 # 7. Configuração e montagem dos arquivos estáticos do front-end

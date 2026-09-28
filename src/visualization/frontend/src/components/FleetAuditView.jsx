@@ -2,8 +2,24 @@ import React from 'react';
 import { Activity, ChevronRight } from 'lucide-react';
 
 export default function FleetAuditView({ auditData, setFilters, setActiveTab }) {
-  const handleInspectLine = (lineCode) => {
-    setFilters(prev => ({ ...prev, line: lineCode }));
+  const handleInspectLine = (lineCode, targetDir = null) => {
+    setFilters(prev => {
+      let nextDir = targetDir;
+      if (!nextDir) {
+        const lineData = auditData?.lines?.find(l => l.line === lineCode);
+        if (lineData?.skipped_by_direction) {
+          const dirsWithSkips = Object.entries(lineData.skipped_by_direction).filter(([_, c]) => c > 0);
+          if (dirsWithSkips.length === 1) {
+            nextDir = dirsWithSkips[0][0];
+          }
+        }
+      }
+      return {
+        ...prev,
+        line: lineCode,
+        direction: nextDir || prev.direction || 'VOLTA'
+      };
+    });
     setActiveTab('conformance');
   };
 
@@ -140,7 +156,32 @@ export default function FleetAuditView({ auditData, setFilters, setActiveTab }) 
                       </span>
                     </div>
                   </td>
-                  <td className="py-3.5 px-5 text-right font-mono text-amber-700">{l.skipped_stops_count}</td>
+                  <td className="py-3.5 px-5 text-right">
+                    <div className="flex flex-col items-end">
+                      <span className={`font-mono font-bold text-xs ${l.skipped_stops_count > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
+                        {l.skipped_stops_count}
+                      </span>
+                      {l.skipped_by_direction && Object.keys(l.skipped_by_direction).length > 0 && (
+                        <div className="flex items-center gap-1 text-[10px] mt-0.5 font-mono">
+                          {Object.entries(l.skipped_by_direction).map(([dir, count]) => (
+                            <button
+                              key={dir}
+                              type="button"
+                              onClick={() => handleInspectLine(l.line, dir)}
+                              title={`Inspecionar linha ${l.line} no sentido ${dir} (${count} paradas puladas)`}
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] transition-all cursor-pointer ${
+                                count > 0
+                                  ? 'font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300'
+                                  : 'text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200'
+                              }`}
+                            >
+                              {dir}: {count}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </td>
                   <td className="py-3.5 px-5 text-right font-mono text-slate-700">{l.bottlenecks_count}</td>
                   <td className="py-3.5 px-5 text-center">
                     <span

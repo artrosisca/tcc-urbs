@@ -10,7 +10,8 @@ export default function ConformanceInspector({ conformanceData, onTripSelect }) 
     );
   }
 
-  const { avg_fitness, fit_percentage, total_cases, skipped_stops, deviant_trips } = conformanceData;
+  const { avg_fitness, fit_percentage, total_cases, skipped_stops, deviant_trips, total_interpolated } = conformanceData;
+  const displayInterpolated = total_interpolated ?? (deviant_trips ? deviant_trips.reduce((acc, trip) => acc + (trip.interpolated_count || 0), 0) : 0);
 
   return (
     <div className="w-full h-full bg-slate-50 flex flex-col p-6 overflow-y-auto space-y-6">
@@ -70,7 +71,7 @@ export default function ConformanceInspector({ conformanceData, onTripSelect }) 
           <div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Incerteza GPS (Interpoladas)</div>
             <div className="text-xl font-extrabold text-slate-800">
-              {deviant_trips ? deviant_trips.reduce((acc, trip) => acc + (trip.interpolated_count || 0), 0) : 0}
+              {displayInterpolated}
             </div>
           </div>
         </div>
@@ -102,7 +103,7 @@ export default function ConformanceInspector({ conformanceData, onTripSelect }) 
                 ) : (
                   deviant_trips.map((trip, idx) => (
                     <tr 
-                      key={idx} 
+                      key={trip.case_id || idx} 
                       className="hover:bg-blue-50 transition-all font-medium text-slate-700 cursor-pointer"
                       onClick={() => onTripSelect && onTripSelect(trip.case_id)}
                       title="Clique para assistir o Replay desta viagem no Mapa"

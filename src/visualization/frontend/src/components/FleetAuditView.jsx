@@ -83,7 +83,7 @@ export default function FleetAuditView({ filters, setFilters, setActiveTab }) {
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
           <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Viagens Totais Auditadas</div>
           <div className="text-2xl font-black text-blue-600 mt-1">{summary.total_trips_audited.toLocaleString('pt-BR')}</div>
-          <div className="text-[11px] text-slate-500 mt-1">Casos minerados no período</div>
+          <div className="text-[11px] text-slate-500 mt-1">Casos minerados no período (ambos os sentidos)</div>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
@@ -116,7 +116,7 @@ export default function FleetAuditView({ filters, setFilters, setActiveTab }) {
               <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold text-[10px] uppercase tracking-wider">
                 <th className="py-3 px-5">Linha</th>
                 <th className="py-3 px-5">Nome / Tipo</th>
-                <th className="py-3 px-5 text-right">Viagens</th>
+                <th className="py-3 px-5 text-right">Viagens (IDA+VOLTA)</th>
                 <th className="py-3 px-5">Aderência / Conformidade</th>
                 <th className="py-3 px-5 text-right">Paradas Puladas</th>
                 <th className="py-3 px-5 text-right">Gargalos (&gt;2min)</th>
@@ -134,7 +134,14 @@ export default function FleetAuditView({ filters, setFilters, setActiveTab }) {
                       {l.line}
                     </span>
                   </td>
-                  <td className="py-3.5 px-5 text-slate-600 font-semibold">{l.name}</td>
+                  <td className="py-3.5 px-5">
+                    <div className="flex flex-col">
+                      <span className="text-slate-700 font-semibold">{l.name}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Escopo: {l.direction || 'IDA+VOLTA'}
+                      </span>
+                    </div>
+                  </td>
                   <td className="py-3.5 px-5 text-right font-mono text-slate-700">{l.total_cases}</td>
                   <td className="py-3.5 px-5">
                     <div className="w-40 flex flex-col gap-0.5">

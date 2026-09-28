@@ -156,12 +156,20 @@ class ProcessMiningEngine:
             Dictionary containing conformance statistics and deviation details.
         """
         if event_log_df.empty or static_stops_df.empty:
-            empty_res = {"avg_fitness": 0.0, "fit_percentage": 0.0, "total_cases": 0, "skipped_stops": [], "deviant_trips": []}
+            empty_res = {"avg_fitness": 0.0, "fit_percentage": 0.0, "total_cases": 0, "fit_count": 0, "total_interpolated": 0, "skipped_stops": [], "deviant_trips": [], "deviations": []}
             return empty_res if direction else {}
+
+        # Deep-layer defense: repair mojibake before any name-based resolution,
+        # regardless of whether the caller sanitized upstream.
+        event_log_df = event_log_df.copy()
+        static_stops_df = static_stops_df.copy()
+        if 'concept:name' in event_log_df.columns:
+            event_log_df['concept:name'] = event_log_df['concept:name'].apply(_fix_encoding)
+        if 'NOME' in static_stops_df.columns:
+            static_stops_df['NOME'] = static_stops_df['NOME'].apply(_fix_encoding)
 
         # Ensure datetime
         if not pd.api.types.is_datetime64_any_dtype(event_log_df['time:timestamp']):
-            event_log_df = event_log_df.copy()
             event_log_df['time:timestamp'] = pd.to_datetime(event_log_df['time:timestamp'])
 
         results: Dict[str, Any] = {}
@@ -174,9 +182,15 @@ class ProcessMiningEngine:
             # Dynamically resolve static direction
             sentido_static = None
             if not group.empty and 'NOME' in static_stops_df.columns and 'SENTIDO' in static_stops_df.columns:
-                first_concept = group['concept:name'].iloc[0]
-                sample_stop_name = strip_activity_name(first_concept)
+                first_row = group.iloc[0]
+                sample_stop_name = strip_activity_name(first_row['concept:name'])
                 matching = static_stops_df[static_stops_df['NOME'] == sample_stop_name]
+                # Priority: disambiguate by stop_seq identity when both name+seq match
+                if len(matching) > 1 and 'stop_seq' in group.columns and pd.notna(first_row.get('stop_seq')) \
+                        and 'SEQ' in matching.columns:
+                    seq_match = matching[matching['SEQ'] == int(first_row['stop_seq'])]
+                    if not seq_match.empty:
+                        matching = seq_match
                 if not matching.empty:
                     sentido_static = matching['SENTIDO'].iloc[0]
 
@@ -192,9 +206,6 @@ class ProcessMiningEngine:
 
             if stops_dir.empty:
                 continue
-
-            if 'NOME' in stops_dir.columns:
-                stops_dir['NOME'] = stops_dir['NOME'].apply(_fix_encoding)
 
             # Match by stop identity (SEQ) whenever available; fall back to activity names.
             stops_records = stops_dir.to_dict('records')
@@ -219,6 +230,7 @@ class ProcessMiningEngine:
             avg_fitness = 0.0
             fit_pct = 0.0
             total_cases = 0
+            fit_count = 0
 
             try:
                 replayed = pm4py.conformance_diagnostics_token_based_replay(log, net, init_m, final_m)
@@ -233,6 +245,7 @@ class ProcessMiningEngine:
             # 2. Heuristic Skipped Stops & Deviations (by stop identity)
             deviations = []
             skipped_stops_all = []
+            total_interpolated = 0
 
             for case_id, case_group in group.groupby('case:concept:name'):
                 case_sorted = case_group.sort_values('stop_seq') if 'stop_seq' in case_group.columns else case_group
@@ -260,6 +273,7 @@ class ProcessMiningEngine:
                     elif 'interpolated' in s_rows.columns and s_rows['interpolated'].iloc[0]:
                         interp_count += 1
 
+                total_interpolated += interp_count
                 veh = case_group['org:resource'].iloc[0] if 'org:resource' in case_group.columns else "N/A"
                 tab = case_group['tabela'].iloc[0] if 'tabela' in case_group.columns else "N/A"
 
@@ -308,6 +322,8 @@ class ProcessMiningEngine:
                 "avg_fitness": float(avg_fitness),
                 "fit_percentage": float(fit_pct),
                 "total_cases": int(total_cases),
+                "fit_count": int(fit_count),
+                "total_interpolated": int(total_interpolated),
                 "skipped_stops": skipped_counts,
                 "deviant_trips": deviant_trips,
                 "deviations": df_dev.to_dict('records') if isinstance(df_dev, pd.DataFrame) else []
@@ -319,10 +335,101 @@ class ProcessMiningEngine:
                 "avg_fitness": 0.0,
                 "fit_percentage": 0.0,
                 "total_cases": 0,
+                "fit_count": 0,
+                "total_interpolated": 0,
                 "skipped_stops": [],
-                "deviant_trips": []
+                "deviant_trips": [],
+                "deviations": []
             })
         return results
+
+    @staticmethod
+    def aggregate_conformance(per_direction: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Merge per-direction conformance results into one coherent fleet summary.
+
+        Rules:
+        - total_cases: sum of total_cases across directions
+        - avg_fitness: weighted average by total_cases
+        - fit_percentage: weighted average by total_cases
+        - skipped_stops: merged by (stop_seq, stop_name) summing counts, sorted desc
+        - deviant_trips: combined deviations across all directions sorted by skipped_count desc (top 10)
+        - total_interpolated: sum of total_interpolated
+        - fit_count: sum of fit_count
+        - deviations: full concatenation of all deviations records
+        """
+        if not per_direction:
+            return {
+                "avg_fitness": 0.0,
+                "fit_percentage": 0.0,
+                "total_cases": 0,
+                "fit_count": 0,
+                "total_interpolated": 0,
+                "skipped_stops": [],
+                "deviant_trips": [],
+                "deviations": []
+            }
+
+        total_cases = sum(r.get("total_cases", 0) for r in per_direction.values())
+        if total_cases == 0:
+            return {
+                "avg_fitness": 0.0,
+                "fit_percentage": 0.0,
+                "total_cases": 0,
+                "fit_count": 0,
+                "total_interpolated": 0,
+                "skipped_stops": [],
+                "deviant_trips": [],
+                "deviations": []
+            }
+
+        weighted_fitness = sum(r.get("avg_fitness", 0.0) * r.get("total_cases", 0) for r in per_direction.values()) / total_cases
+        weighted_fit_pct = sum(r.get("fit_percentage", 0.0) * r.get("total_cases", 0) for r in per_direction.values()) / total_cases
+        fit_count = sum(r.get("fit_count", 0) for r in per_direction.values())
+        total_interpolated = sum(r.get("total_interpolated", 0) for r in per_direction.values())
+
+        # Merge skipped stops by (stop_seq, stop_name)
+        skipped_map: Dict[Tuple[Optional[int], str], int] = {}
+        for r in per_direction.values():
+            for s in r.get("skipped_stops", []):
+                key = (s.get("stop_seq"), str(s.get("stop_name", "")))
+                skipped_map[key] = skipped_map.get(key, 0) + int(s.get("count", 0))
+
+        merged_skipped = [
+            {"stop_seq": k[0], "stop_name": k[1], "count": cnt}
+            for k, cnt in sorted(skipped_map.items(), key=lambda item: item[1], reverse=True)
+        ]
+
+        # Combine deviations across directions
+        all_deviations = []
+        for r in per_direction.values():
+            all_deviations.extend(r.get("deviations", []))
+
+        # Re-derive top 10 deviant trips globally
+        top_deviant = sorted(all_deviations, key=lambda d: d.get("skipped_count", 0), reverse=True)[:10]
+        cleaned_deviant_trips = [
+            {
+                "case_id": str(d.get("case_id", "")),
+                "vehicle": str(d.get("vehicle", "")),
+                "tabela": str(d.get("tabela", "")),
+                "total_visited": int(d.get("total_visited", 0)),
+                "skipped_count": int(d.get("skipped_count", 0)),
+                "skipped_stops": d.get("skipped_stops", []),
+                "interpolated_count": int(d.get("interpolated_count", 0))
+            }
+            for d in top_deviant
+        ]
+
+        return {
+            "avg_fitness": float(weighted_fitness),
+            "fit_percentage": float(weighted_fit_pct),
+            "total_cases": int(total_cases),
+            "fit_count": int(fit_count),
+            "total_interpolated": int(total_interpolated),
+            "skipped_stops": merged_skipped,
+            "deviant_trips": cleaned_deviant_trips,
+            "deviations": all_deviations
+        }
 
     @classmethod
     def analyze_performance(

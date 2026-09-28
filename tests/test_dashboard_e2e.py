@@ -644,3 +644,34 @@ def test_api_fleet_audit_and_cache():
     res_cached = client.get("/api/fleet-audit?regime=A")
     assert res_cached.status_code == 200
     assert res_cached.json() == data
+
+
+def test_api_fleet_audit_regime_b_aggregated():
+    """
+    Verify /api/fleet-audit?regime=B aggregates IDA+VOLTA:
+    - direction is 'IDA+VOLTA' when both directions exist
+    - summary.total_trips_audited == sum(lines.total_cases)
+    - total_skipped_stops is plausibly bounded
+    """
+    # Clear cache if any
+    from src.visualization.dashboard import _fleet_audit_cache
+    _fleet_audit_cache.pop("B", None)
+
+    res = client.get("/api/fleet-audit?regime=B")
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["regime"] == "B"
+    summary = data["summary"]
+    lines = data["lines"]
+
+    total_line_cases = sum(l["total_cases"] for l in lines)
+    assert summary["total_trips_audited"] == total_line_cases
+    assert summary["total_lines"] == len(lines)
+
+    for line_info in lines:
+        assert line_info["direction"] in ["IDA+VOLTA", "IDA", "VOLTA", "CIRCULAR"]
+        assert line_info["total_cases"] > 0
+        # In Regime B, skipped stops must not be pathological (should be bounded)
+        assert line_info["skipped_stops_count"] < line_info["total_cases"] * 100
+

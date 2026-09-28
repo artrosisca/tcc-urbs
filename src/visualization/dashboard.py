@@ -519,20 +519,29 @@ def get_fleet_audit(regime: str = "B"):
         csv_path = sorted(valid_files)[-1]
         try:
             df = pd.read_csv(csv_path)
-            total_cases = int(df['case:concept:name'].nunique()) if 'case:concept:name' in df.columns else 0
-            
             static_data = load_static_data('2025-10-24' if regime == 'A' else '2025-12-02', l)
             stops_df = static_data.get('pontos', pd.DataFrame())
-            chosen_dir, df_dir = resolve_direction_subset(df, "VOLTA")
-            conf = ProcessMiningEngine.evaluate_conformance(df, stops_df, direction=chosen_dir)
+
+            per_dir = ProcessMiningEngine.evaluate_conformance(df, stops_df, direction=None)
+            conf = ProcessMiningEngine.aggregate_conformance(per_dir)
+
+            total_cases = conf["total_cases"]
+            direction_scope = "IDA+VOLTA" if len(per_dir) > 1 else (next(iter(per_dir)) if per_dir else "N/D")
+
             fit_pct = float(conf.get("fit_percentage", 0.0))
             avg_fit = float(conf.get("avg_fitness", 0.0))
             adherence_pct = round(avg_fit * 100, 1)
             skipped_stops_count = sum(s.get("count", 0) for s in conf.get("skipped_stops", []))
-            
-            perf = ProcessMiningEngine.analyze_performance(df_dir, as_svg=False)
-            bottlenecks_count = sum(1 for link in perf.get("links", []) if link.get("avg_duration_sec", 0) > 120)
-            
+
+            bottlenecks_count = 0
+            for dir_name in per_dir.keys():
+                df_dir = df[df['gps_direction'] == dir_name]
+                perf = ProcessMiningEngine.analyze_performance(df_dir, as_svg=False)
+                bottlenecks_count += sum(
+                    1 for link in perf.get("links", [])
+                    if link.get("mean_duration", link.get("avg_duration_sec", 0)) > 120
+                )
+
             # Context-aware operational status:
             # In Regime A (2m intervals), telemetry jumps cause discrete token omissions,
             # so adherence_pct reflects physical route following.
@@ -550,7 +559,7 @@ def get_fleet_audit(regime: str = "B"):
                     status = "ATENÇÃO"
                 else:
                     status = "CRÍTICO"
-                
+
             fleet_lines.append({
                 "line": l,
                 "name": line_names.get(l, f"Linha {l}"),
@@ -561,7 +570,7 @@ def get_fleet_audit(regime: str = "B"):
                 "skipped_stops_count": skipped_stops_count,
                 "bottlenecks_count": bottlenecks_count,
                 "status": status,
-                "direction": chosen_dir
+                "direction": direction_scope
             })
         except Exception:
             pass

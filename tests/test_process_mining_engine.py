@@ -243,3 +243,122 @@ def test_empty_dataframe_handling():
     
     seg = ProcessMiningEngine.analyze_segment_performance(empty_df)
     assert seg.empty
+
+
+def test_evaluate_conformance_sanitizes_mojibake_names():
+    """
+    Regression test for line 542 / mojibake bug:
+    Raw event log with mojibake concept:name (e.g. 'PASSAGEM_Terminal SÃ\xadtio Cercado')
+    must be repaired so that direction matching against clean static stops succeeds
+    and doesn't erroneously pick the opposite direction producing hundreds of fake skipped stops.
+    """
+    base_time = datetime(2025, 12, 2, 8, 0, 0)
+    # Static stops for two directions
+    stops_data = [
+        {"SENTIDO": "IDA", "SEQ": 1, "NOME": "Praça Rui Barbosa"},
+        {"SENTIDO": "IDA", "SEQ": 2, "NOME": "Terminal Sítio Cercado"},
+        {"SENTIDO": "VOLTA", "SEQ": 1, "NOME": "Terminal Sítio Cercado"},
+        {"SENTIDO": "VOLTA", "SEQ": 2, "NOME": "Praça Rui Barbosa"},
+    ]
+    stops_df = pd.DataFrame(stops_data)
+
+    # Event log with mojibake in VOLTA
+    records = [
+        {
+            "case:concept:name": "CASE_1",
+            "concept:name": "PASSAGEM_Terminal SÃ\xadtio Cercado",
+            "time:timestamp": base_time,
+            "stop_seq": 1,
+            "org:resource": "V1",
+            "tabela": "1",
+            "gps_direction": "VOLTA",
+            "interpolated": False,
+        },
+        {
+            "case:concept:name": "CASE_1",
+            "concept:name": "PASSAGEM_PraÃ§a Rui Barbosa",
+            "time:timestamp": base_time + timedelta(minutes=10),
+            "stop_seq": 2,
+            "org:resource": "V1",
+            "tabela": "1",
+            "gps_direction": "VOLTA",
+            "interpolated": False,
+        },
+    ]
+    event_log_df = pd.DataFrame(records)
+
+    conf = ProcessMiningEngine.evaluate_conformance(event_log_df, stops_df, direction="VOLTA")
+    assert conf["total_cases"] == 1
+    assert conf["fit_percentage"] == 100.0
+    assert len(conf["skipped_stops"]) == 0
+    assert conf["fit_count"] == 1
+
+
+def test_aggregate_conformance_weighted_merge():
+    """Verify that aggregate_conformance correctly weights fitness and merges skipped stops."""
+    per_dir = {
+        "IDA": {
+            "total_cases": 100,
+            "avg_fitness": 0.8,
+            "fit_percentage": 70.0,
+            "fit_count": 70,
+            "total_interpolated": 15,
+            "skipped_stops": [
+                {"stop_seq": 1, "stop_name": "Stop A", "count": 10},
+                {"stop_seq": 2, "stop_name": "Stop B", "count": 5},
+            ],
+            "deviations": [
+                {"case_id": "C_IDA_1", "skipped_count": 3, "vehicle": "V1", "tabela": "1", "total_visited": 10, "skipped_stops": ["A"], "interpolated_count": 1}
+            ]
+        },
+        "VOLTA": {
+            "total_cases": 200,
+            "avg_fitness": 0.95,
+            "fit_percentage": 90.0,
+            "fit_count": 180,
+            "total_interpolated": 30,
+            "skipped_stops": [
+                {"stop_seq": 1, "stop_name": "Stop A", "count": 20},
+                {"stop_seq": 3, "stop_name": "Stop C", "count": 8},
+            ],
+            "deviations": [
+                {"case_id": "C_VOLTA_1", "skipped_count": 5, "vehicle": "V2", "tabela": "2", "total_visited": 8, "skipped_stops": ["C"], "interpolated_count": 2}
+            ]
+        }
+    }
+
+    agg = ProcessMiningEngine.aggregate_conformance(per_dir)
+
+    assert agg["total_cases"] == 300
+    # Weighted avg_fitness: (0.8 * 100 + 0.95 * 200) / 300 = 270 / 300 = 0.9
+    assert abs(agg["avg_fitness"] - 0.9) < 1e-4
+    # Weighted fit_percentage: (70 * 100 + 90 * 200) / 300 = 25000 / 300 = 83.3333%
+    assert abs(agg["fit_percentage"] - 83.3333) < 1e-2
+    assert agg["fit_count"] == 250
+    assert agg["total_interpolated"] == 45
+
+    # Check merged skipped stops: Stop A (10 + 20 = 30), Stop C (8), Stop B (5)
+    assert len(agg["skipped_stops"]) == 3
+    assert agg["skipped_stops"][0]["stop_name"] == "Stop A"
+    assert agg["skipped_stops"][0]["count"] == 30
+    assert agg["skipped_stops"][1]["stop_name"] == "Stop C"
+    assert agg["skipped_stops"][1]["count"] == 8
+    assert agg["skipped_stops"][2]["stop_name"] == "Stop B"
+    assert agg["skipped_stops"][2]["count"] == 5
+
+    # Check top deviant trips: C_VOLTA_1 (skipped_count 5) followed by C_IDA_1 (3)
+    assert len(agg["deviant_trips"]) == 2
+    assert agg["deviant_trips"][0]["case_id"] == "C_VOLTA_1"
+    assert agg["deviant_trips"][1]["case_id"] == "C_IDA_1"
+
+
+def test_evaluate_conformance_reports_total_interpolated(sample_event_log, sample_stops):
+    """Verify that total_interpolated is counted across the entire selection."""
+    df = sample_event_log.copy()
+    # Mark two events as interpolated
+    df.loc[df.index[:2], "interpolated"] = True
+
+    conf = ProcessMiningEngine.evaluate_conformance(df, sample_stops, direction="VOLTA")
+    assert "total_interpolated" in conf
+    assert conf["total_interpolated"] >= 1
+

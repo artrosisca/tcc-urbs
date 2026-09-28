@@ -1,7 +1,7 @@
 import React from 'react';
 import { Activity, ChevronRight } from 'lucide-react';
 
-export default function FleetAuditView({ auditData, setFilters, setActiveTab }) {
+export default function FleetAuditView({ auditData, loading, setFilters, setActiveTab }) {
   const handleInspectLine = (lineCode, targetDir = null) => {
     setFilters(prev => {
       let nextDir = targetDir;
@@ -56,6 +56,12 @@ export default function FleetAuditView({ auditData, setFilters, setActiveTab }) 
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {loading && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 animate-pulse">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+              Atualizando…
+            </span>
+          )}
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-200 text-slate-700">
             Período: {auditData?.date_range || 'N/D'}
           </span>

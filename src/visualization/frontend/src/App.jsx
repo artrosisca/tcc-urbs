@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import SidebarFilters from './components/SidebarFilters';
 import GeospatialConsole from './components/GeospatialConsole';
 import ProcessVisualizer from './components/ProcessVisualizer';
@@ -65,14 +65,25 @@ export default function App() {
 
   // Elevated fleet audit state (avoids duplicate fetch and supplies activeLineName)
   const [fleetAudit, setFleetAudit] = useState(null);
+  const [fleetAuditLoading, setFleetAuditLoading] = useState(false);
+  const fleetAuditReqSeq = useRef(0);
   const regimeParam = filters.regime?.includes('20s') || filters.regime?.includes('B') ? 'B' : 'A';
 
+  const fetchFleetAudit = async () => {
+    const seq = ++fleetAuditReqSeq.current;
+    setFleetAuditLoading(true);
+    try {
+      const res = await fetch(`/api/fleet-audit?regime=${regimeParam}&start_date=${filters.startDate}&end_date=${filters.endDate}`);
+      const data = res.ok ? await res.json() : null;
+      if (seq === fleetAuditReqSeq.current && data) setFleetAudit(data);
+    } catch {} finally {
+      if (seq === fleetAuditReqSeq.current) setFleetAuditLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetch(`/api/fleet-audit?regime=${regimeParam}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => d && setFleetAudit(d))
-      .catch(() => {});
-  }, [regimeParam]);
+    fetchFleetAudit();
+  }, [regimeParam, filters.startDate, filters.endDate]);
 
   const activeLineName = fleetAudit?.lines?.find(l => l.line === filters.line)?.name || null;
 
@@ -80,7 +91,25 @@ export default function App() {
   const [mapData, setMapData] = useState(null);
   const [petriNetData, setPetriNetData] = useState(null);
   const [conformanceData, setConformanceData] = useState(null);
+  const [conformanceLoading, setConformanceLoading] = useState(false);
+  const conformanceReqSeq = useRef(0);
   const [performanceData, setPerformanceData] = useState(null);
+
+  // Independent, fast conformance fetch (decoupled from the heavy overview pipeline)
+  const fetchConformance = async () => {
+    const seq = ++conformanceReqSeq.current;
+    setConformanceLoading(true);
+    const { line, startDate, endDate, direction, startHour, endHour } = filters;
+    const query = `line=${line}&start_date=${startDate}&end_date=${endDate}&direction=${direction}&start_hour=${startHour}&end_hour=${endHour}`;
+    try {
+      const res = await fetch(`/api/conformance?${query}`);
+      if (seq === conformanceReqSeq.current) setConformanceData(res.ok ? await res.json() : null);
+    } catch {
+      if (seq === conformanceReqSeq.current) setConformanceData(null);
+    } finally {
+      if (seq === conformanceReqSeq.current) setConformanceLoading(false);
+    }
+  };
 
   // Fetch dashboard data
   const fetchDashboardData = async () => {
@@ -94,12 +123,10 @@ export default function App() {
         const data = await res.json();
         setMapData(data.map_data || null);
         setPetriNetData(data.discovery || null);
-        setConformanceData(data.conformance || null);
         setPerformanceData(data.performance || null);
       } else {
         setMapData(null);
         setPetriNetData(null);
-        setConformanceData(null);
         setPerformanceData(null);
       }
     } catch (err) {
@@ -111,6 +138,7 @@ export default function App() {
 
   // Triggered on page load or parameters change (if logs exist)
   useEffect(() => {
+    fetchConformance();
     fetchDashboardData();
   }, [filters.line, filters.direction, filters.startHour, filters.endHour, filters.startDate, filters.endDate]);
 
@@ -130,7 +158,9 @@ export default function App() {
         setIsProcessing(false);
         setMiningStatus('success');
         sse.close();
-        fetchDashboardData(); // Refresh UI
+        fetchConformance(); // Refresh UI
+        fetchDashboardData();
+        fetchFleetAudit();
       } else if (msg === '__FAILURE__') {
         setProcessingLogs(prev => [...prev, 'Erro crítico no processamento dos dados.']);
         setIsProcessing(false);
@@ -299,13 +329,28 @@ export default function App() {
             {/* Quick Metrics display (active when on line-specific tabs) */}
             {activeTab !== 'audit' && (
               <div className="flex items-center gap-4 text-xs transition-opacity duration-200">
-                {isLoading && (
+                {(isLoading || conformanceLoading) && (
                   <div className="flex items-center gap-1.5 text-blue-600 font-semibold text-[11px] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200 shadow-2xs">
                     <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-300 border-t-blue-700"></div>
                     <span>Atualizando {filters.direction}...</span>
                   </div>
                 )}
-                {conformanceData && (
+                {conformanceLoading ? (
+                  <>
+                    <div className="flex flex-col text-right">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Fitness</span>
+                      <span className="inline-block h-4 w-10 bg-slate-200 animate-pulse rounded" />
+                    </div>
+                    <div className="flex flex-col text-right">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Conformidade</span>
+                      <span className="inline-block h-4 w-10 bg-slate-200 animate-pulse rounded" />
+                    </div>
+                    <div className="flex flex-col text-right">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Viagens</span>
+                      <span className="inline-block h-4 w-10 bg-slate-200 animate-pulse rounded" />
+                    </div>
+                  </>
+                ) : conformanceData && (
                   <>
                     <div className="flex flex-col text-right">
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Fitness</span>
@@ -335,6 +380,7 @@ export default function App() {
           {activeTab === 'audit' && (
             <FleetAuditView
               auditData={fleetAudit}
+              loading={fleetAuditLoading}
               setFilters={setFilters}
               setActiveTab={setActiveTab}
             />
@@ -343,13 +389,12 @@ export default function App() {
           {activeTab === 'conformance' && (
             <ConformanceInspector
               conformanceData={conformanceData}
-              isLoading={isLoading}
+              isLoading={conformanceLoading}
               activeDirection={filters.direction}
               onTripSelect={(id) => {
                 setActiveTripId(id);
                 setActiveTab('map');
               }}
-              onNavigate={(tab) => setActiveTab(tab)}
             />
           )}
 

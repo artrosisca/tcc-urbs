@@ -15,9 +15,7 @@ const DEFAULT_FILTERS = {
   line: '541',
   direction: 'VOLTA',
   startDate: '2025-12-02',
-  endDate: '2025-12-08',
-  startHour: '00:00',
-  endHour: '24:00'
+  endDate: '2025-12-08'
 };
 
 function getSavedFilters() {
@@ -99,8 +97,8 @@ export default function App() {
   const fetchConformance = async () => {
     const seq = ++conformanceReqSeq.current;
     setConformanceLoading(true);
-    const { line, startDate, endDate, direction, startHour, endHour } = filters;
-    const query = `line=${line}&start_date=${startDate}&end_date=${endDate}&direction=${direction}&start_hour=${startHour}&end_hour=${endHour}`;
+    const { line, startDate, endDate, direction } = filters;
+    const query = `line=${line}&start_date=${startDate}&end_date=${endDate}&direction=${direction}`;
     try {
       const res = await fetch(`/api/conformance?${query}`);
       if (seq === conformanceReqSeq.current) setConformanceData(res.ok ? await res.json() : null);
@@ -114,8 +112,8 @@ export default function App() {
   // Fetch dashboard data
   const fetchDashboardData = async () => {
     setIsLoading(true);
-    const { line, startDate, endDate, direction, startHour, endHour } = filters;
-    const query = `line=${line}&start_date=${startDate}&end_date=${endDate}&direction=${direction}&start_hour=${startHour}&end_hour=${endHour}`;
+    const { line, startDate, endDate, direction } = filters;
+    const query = `line=${line}&start_date=${startDate}&end_date=${endDate}&direction=${direction}`;
 
     try {
       const res = await fetch(`/api/dashboard-overview?${query}`);
@@ -140,7 +138,7 @@ export default function App() {
   useEffect(() => {
     fetchConformance();
     fetchDashboardData();
-  }, [filters.line, filters.direction, filters.startHour, filters.endHour, filters.startDate, filters.endDate]);
+  }, [filters.line, filters.direction, filters.startDate, filters.endDate]);
 
   // Execute Event Log generation via SSE
   const handleRunMining = () => {

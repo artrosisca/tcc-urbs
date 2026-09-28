@@ -82,7 +82,7 @@ export default function SidebarFilters({
     const checkStatus = async () => {
       if (!filters.line || !filters.startDate || !filters.endDate) return;
       try {
-        const query = `line=${filters.line}&start_date=${filters.startDate}&end_date=${filters.endDate}&start_hour=${filters.startHour}&end_hour=${filters.endHour}`;
+        const query = `line=${filters.line}&start_date=${filters.startDate}&end_date=${filters.endDate}`;
         const res = await fetch(`/api/check-trips?${query}`);
         if (res.ok && isMounted) {
           const data = await res.json();
@@ -98,7 +98,7 @@ export default function SidebarFilters({
     return () => {
       isMounted = false;
     };
-  }, [filters.line, filters.startDate, filters.endDate, filters.startHour, filters.endHour]);
+  }, [filters.line, filters.startDate, filters.endDate]);
 
   // Circular lines detection from available directions
   const availableDirs = tripStatus?.available_directions || [];
@@ -307,29 +307,6 @@ export default function SidebarFilters({
           )}
         </div>
 
-        {/* Start and End Hours */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-500">Hora Início</label>
-            <input
-              type="text"
-              value={filters.startHour}
-              placeholder="00:00"
-              onChange={(e) => setFilters(prev => ({ ...prev, startHour: e.target.value }))}
-              className="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-3 text-xs text-slate-700 focus:border-slate-400 outline-none"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-500">Hora Fim</label>
-            <input
-              type="text"
-              value={filters.endHour}
-              placeholder="24:00"
-              onChange={(e) => setFilters(prev => ({ ...prev, endHour: e.target.value }))}
-              className="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-3 text-xs text-slate-700 focus:border-slate-400 outline-none"
-            />
-          </div>
-        </div>
 
         {/* Trips Status Card */}
         {tripStatus && (

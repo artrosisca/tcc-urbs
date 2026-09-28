@@ -1,36 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Activity, ChevronRight } from 'lucide-react';
 
-export default function FleetAuditView({ filters, setFilters, setActiveTab }) {
-  const [auditData, setAuditData] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const regimeParam = filters.regime?.includes('20s') || filters.regime?.includes('B') ? 'B' : 'A';
-
-  useEffect(() => {
-    const fetchAudit = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/fleet-audit?regime=${regimeParam}`);
-        if (res.ok) {
-          const data = await res.json();
-          setAuditData(data);
-        }
-      } catch (err) {
-        console.error('Error fetching fleet audit data:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAudit();
-  }, [filters.regime, regimeParam]);
-
+export default function FleetAuditView({ auditData, setFilters, setActiveTab }) {
   const handleInspectLine = (lineCode) => {
     setFilters(prev => ({ ...prev, line: lineCode }));
     setActiveTab('conformance');
   };
 
-  if (loading && !auditData) {
+  if (!auditData) {
     return (
       <div className="flex h-full items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">

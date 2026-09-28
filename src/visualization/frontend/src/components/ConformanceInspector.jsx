@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldAlert, CheckCircle, Percent, Activity, Compass } from 'lucide-react';
 
-export default function ConformanceInspector({ conformanceData, onTripSelect }) {
+export default function ConformanceInspector({ conformanceData, onTripSelect, onNavigate }) {
   if (!conformanceData) {
     return (
       <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-400 text-xs">
@@ -172,6 +172,24 @@ export default function ConformanceInspector({ conformanceData, onTripSelect }) 
             )}
           </div>
         </div>
+      </div>
+
+      {/* Quick Navigation Footer Links */}
+      <div className="flex items-center justify-end gap-4 pt-3 border-t border-slate-200 text-xs font-semibold flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => onNavigate && onNavigate('performance')}
+          className="text-blue-600 hover:text-blue-800 transition-colors"
+        >
+          Ver Gargalos DFG desta linha →
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate && onNavigate('petri')}
+          className="text-blue-600 hover:text-blue-800 transition-colors"
+        >
+          Ver Rede de Petri →
+        </button>
       </div>
     </div>
   );

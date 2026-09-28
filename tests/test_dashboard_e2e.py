@@ -47,12 +47,14 @@ client = TestClient(app)
 # ==============================================================================
 
 # --- emoji removal (5 tests) ---
-def test_logo_contains_bus_emoji():
-    """Verify that the logo retains the bus emoji (🚌)."""
+def test_logo_contains_bus_icon():
+    """Verify the logo uses the vectorial Bus icon (lucide-react) and formal title, not an emoji."""
     assert os.path.exists(SIDEBAR_FILTERS_JSX), f"File not found: {SIDEBAR_FILTERS_JSX}"
     with open(SIDEBAR_FILTERS_JSX, "r", encoding="utf-8") as f:
         code = f.read()
-    assert "🚌" in code, "Logo bus emoji (🚌) should be kept in SidebarFilters.jsx."
+    assert "<Bus" in code, "Logo should use the lucide-react <Bus /> SVG icon."
+    assert "URBS Process Mining" in code, "Formal product title must remain in the sidebar logo."
+    assert "🚌" not in code, "Residual bus emoji must be removed from SidebarFilters.jsx."
 
 def test_no_emojis_in_tab_buttons():
     """Verify tab navigation buttons do not contain restricted emojis (🗺️, 🧭, 🔍, ⚡, 🚫, ⚠️)."""

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Settings, RefreshCw, CheckCircle, AlertCircle, Calendar } from 'lucide-react';
+import { Play, Settings, RefreshCw, CheckCircle, AlertCircle, Calendar, Bus, RotateCw } from 'lucide-react';
 import MiningConsole from './MiningConsole';
 
 export default function SidebarFilters({
@@ -9,7 +9,8 @@ export default function SidebarFilters({
   processingLogs,
   isProcessing,
   miningStatus = 'idle',
-  onClearLogs
+  onClearLogs,
+  activeTab = 'audit'
 }) {
   const [minedLines, setMinedLines] = useState([]);
   const [rawLines, setRawLines] = useState([]);
@@ -61,7 +62,6 @@ export default function SidebarFilters({
           const linesArray = data.lines || [];
           const mined = data.mined_lines || [];
           const raw = data.raw_lines || [];
-          setAvailableLines(linesArray);
           setMinedLines(mined);
           setRawLines(raw);
           if (linesArray.length > 0 && !linesArray.includes(filters.line)) {
@@ -100,13 +100,26 @@ export default function SidebarFilters({
     };
   }, [filters.line, filters.startDate, filters.endDate, filters.startHour, filters.endHour]);
 
+  // Circular lines detection from available directions
+  const availableDirs = tripStatus?.available_directions || [];
+  const isCircular = availableDirs.includes('CIRCULAR');
+
+  useEffect(() => {
+    if (isCircular && filters.direction !== 'CIRCULAR') {
+      setFilters(prev => ({ ...prev, direction: 'CIRCULAR' }));
+    } else if (!isCircular && filters.direction === 'CIRCULAR') {
+      setFilters(prev => ({ ...prev, direction: 'VOLTA' }));
+    }
+  }, [isCircular, filters.line]);
+
   const handleRegimeChange = (regimeKey) => {
     const defaultPeriod = regimeConfig[regimeKey].week;
     setFilters(prev => ({
       ...prev,
       regime: regimeKey,
       startDate: defaultPeriod.start,
-      endDate: defaultPeriod.end
+      endDate: defaultPeriod.end,
+      direction: 'VOLTA'
     }));
   };
 
@@ -126,7 +139,8 @@ export default function SidebarFilters({
       {/* Title */}
       <div className="p-5 border-b border-slate-200 flex items-center justify-between">
         <h1 className="text-lg font-bold text-slate-800 tracking-tight flex items-center gap-2">
-          <span>🚌 URBS Process Mining</span>
+          <Bus className="h-5 w-5 text-blue-600 flex-shrink-0" />
+          <span>URBS Process Mining</span>
         </h1>
         <span className="bg-blue-50 text-blue-700 text-xs px-2.5 py-0.5 rounded-full font-medium border border-blue-100">
           CCO Dashboard
@@ -136,7 +150,13 @@ export default function SidebarFilters({
       {/* Config Form */}
       <div className="p-5 flex-1 overflow-y-auto space-y-5">
         {/* Bus Line Selector */}
-        <div className="space-y-2">
+        <div className={`space-y-2 ${activeTab === 'audit' ? 'p-2.5 bg-blue-50/50 rounded-xl ring-1 ring-blue-200' : ''}`}>
+          {activeTab === 'audit' && (
+            <div className="p-2.5 rounded-lg border border-blue-200 bg-blue-50 text-[11px] text-blue-800 leading-snug">
+              <span className="font-bold">Modo Frota Ativo:</span> visualizando todas as linhas.
+              Selecione uma linha para pré-selecionar ou clique em <em>Inspecionar Linha</em> na tabela ao lado.
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Linha de Ônibus</label>
             <span className="text-[10px] font-bold text-slate-400">
@@ -257,22 +277,34 @@ export default function SidebarFilters({
         {/* Direction Toggle */}
         <div className="space-y-2">
           <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sentido Operacional</label>
-          <div className="grid grid-cols-2 gap-2">
-            {['VOLTA', 'IDA'].map(dir => (
-              <button
-                key={dir}
-                type="button"
-                onClick={() => setFilters(prev => ({ ...prev, direction: dir }))}
-                className={`py-2 px-3 text-xs font-medium rounded-lg border text-center transition-all ${
-                  filters.direction === dir
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                {dir}
-              </button>
-            ))}
-          </div>
+          {isCircular ? (
+            <div className="space-y-1">
+              <div className="py-2 px-3 text-xs font-semibold rounded-lg bg-slate-900 border border-slate-900 text-white flex items-center justify-center gap-1.5 shadow-sm">
+                <RotateCw className="h-3.5 w-3.5 text-blue-400" />
+                <span>CIRCULAR</span>
+              </div>
+              <span className="text-[10px] text-slate-400 block text-center">
+                Linha circular — sentido único detectado no log
+              </span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {['VOLTA', 'IDA'].map(dir => (
+                <button
+                  key={dir}
+                  type="button"
+                  onClick={() => setFilters(prev => ({ ...prev, direction: dir }))}
+                  className={`py-2 px-3 text-xs font-medium rounded-lg border text-center transition-all ${
+                    filters.direction === dir
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {dir}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Start and End Hours */}

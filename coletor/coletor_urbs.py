@@ -1,11 +1,15 @@
 """
 Coletor de telemetria da URBS.
 
-Grava os dados brutos em CSV, organizados por dia e hora, na pasta
-"dados_em_tempo_real_2026" ao lado deste arquivo.
+Grava os dados brutos em CSV, organizados por dia e hora.
+
+Como configurar a pasta de saida:
+- Se PASTA_SAIDA_CONFIGURADA estiver vazia (None), os dados vao para a pasta
+  "dados_em_tempo_real_2026" ao lado deste arquivo.
+- Se voce colocar um caminho, os dados vao para esse caminho. Use isso para
+  salvar dentro de uma pasta sincronizada (ex.: Google Drive).
 
 Uso (Windows): clique duas vezes em "executar_coletor.bat".
-Uso (Linux/Mac): python coletor_urbs.py
 Para parar: Ctrl+C.
 """
 
@@ -16,18 +20,36 @@ import datetime
 import pandas as pd
 import requests
 
-# --- Configuracoes da API ---
+# ============================================================
+# CONFIGURACAO: pasta de saida
+# ============================================================
+# Deixe None para salvar ao lado do script, OU coloque o caminho de uma
+# pasta sincronizada para enviar os dados automaticamente.
+#
+# Exemplos:
+#   Windows (Google Drive espelhado):
+#     PASTA_SAIDA_CONFIGURADA = r"C:\Users\SEU_USUARIO\My Drive\tcc_dados"
+#   Windows (unidade G:):
+#     PASTA_SAIDA_CONFIGURADA = r"G:\Meu Drive\tcc_dados"
+PASTA_SAIDA_CONFIGURADA = None
+
+if PASTA_SAIDA_CONFIGURADA:
+    PASTA_PRINCIPAL_DADOS = PASTA_SAIDA_CONFIGURADA
+else:
+    PASTA_PRINCIPAL_DADOS = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "dados_em_tempo_real_2026"
+    )
+
+# ============================================================
+# Configuracoes da API
+# ============================================================
 BASE_URL = "https://transporteservico.urbs.curitiba.pr.gov.br/"
 ENDPOINT = "getVeiculos.php"
 API_CODE = "65d35"
 FULL_URL = f"{BASE_URL}{ENDPOINT}"
 PARAMS = {"c": API_CODE}
 
-# --- Configuracoes do coletor ---
 INTERVALO_SEGUNDOS = 20
-PASTA_PRINCIPAL_DADOS = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "dados_em_tempo_real_2026"
-)
 
 
 def fetch_vehicle_data():

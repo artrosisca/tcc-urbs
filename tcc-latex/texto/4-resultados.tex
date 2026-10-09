@@ -16,26 +16,26 @@ Foram analisadas três linhas de tipos diferentes: a 541 (troncal), a 542 (alime
 \hline
 \textbf{Linha} & \textbf{Tipo} & \textbf{Regime} & \textbf{Viagens} & \textbf{Eventos} & \textbf{\% interp.} \\ \hline
 541 & Troncal & A & 956 & 5.092 & 23,1\% \\ \hline
-541 & Troncal & B & 782 & 6.570 & 11,1\% \\ \hline
+541 & Troncal & B & 1.191 & 9.833 & 11,0\% \\ \hline
 542 & Alimentadora & A & 542 & 2.460 & 27,4\% \\ \hline
-542 & Alimentadora & B & 622 & 4.140 & 17,4\% \\ \hline
+542 & Alimentadora & B & 967 & 6.395 & 17,0\% \\ \hline
 050 & Interbairros & A & 670 & 7.935 & 24,3\% \\ \hline
-050 & Interbairros & B & 473 & 9.781 & 13,2\% \\ \hline
+050 & Interbairros & B & 723 & 14.889 & 13,1\% \\ \hline
 \end{tabular}
 \fonte{}
 \end{tabframed}
 
 \subsection{Cenário 1: Linha Troncal Radial (Linha 541 - Bairro Novo A)}\label{subsec:cenario541}
 
-A linha 541 liga o bairro Bairro Novo A ao Terminal Sítio Cercado, com 13 paradas no sentido do bairro e 15 no sentido do terminal. No Regime A, o log tem 956 viagens e 5.092 eventos; no Regime B, 782 viagens e 6.570 eventos.
+A linha 541 liga o bairro Bairro Novo A ao Terminal Sítio Cercado, com 13 paradas no sentido do bairro e 15 no sentido do terminal. No Regime A, o log tem 956 viagens e 5.092 eventos; no Regime B, 1.191 viagens e 9.833 eventos.
 
 \subsection{Cenário 2: Linha Alimentadora (Linha 542 - Bairro Novo B)}\label{subsec:cenario542}
 
-A linha 542 atende o bairro Bairro Novo B, com 17 paradas no sentido do bairro e 12 no sentido do terminal. No Regime A, o log tem 542 viagens e 2.460 eventos; no Regime B, 622 viagens e 4.140 eventos.
+A linha 542 atende o bairro Bairro Novo B, com 17 paradas no sentido do bairro e 12 no sentido do terminal. No Regime A, o log tem 542 viagens e 2.460 eventos; no Regime B, 967 viagens e 6.395 eventos.
 
 \subsection{Cenário 3: Linha Interbairros (Linha 050 - Interbairros V)}\label{subsec:cenario050}
 
-A linha 050 liga o Terminal Oficinas ao Terminal Fazendinha, com 101 paradas no total (cerca de 50 por sentido). No Regime A, o log tem 670 viagens e 7.935 eventos; no Regime B, 473 viagens e 9.781 eventos.
+A linha 050 liga o Terminal Oficinas ao Terminal Fazendinha, com 101 paradas no total (cerca de 50 por sentido). No Regime A, o log tem 670 viagens e 7.935 eventos; no Regime B, 723 viagens e 14.889 eventos.
 
 As métricas usadas nas seções seguintes são: o fitness, um valor entre 0 e 1 que mede o quanto as viagens observadas seguem o itinerário planejado; a viagem conforme, que passa por todas as paradas previstas na ordem correta; o evento interpolado, cujo horário de passagem foi estimado por interpolação em vez de medido; e n, o tamanho da amostra de cada trecho na análise de desempenho.
 
@@ -67,13 +67,13 @@ Com o intervalo de 20 segundos, a quantidade de leituras é cerca de seis vezes 
 
 \subsection{Conformidade e Paradas Omitidas}\label{subsec:regimeB_conformidade}
 
-No Regime B, o fitness médio subiu para 0,744 (ida) e 0,753 (volta) na linha 541; 0,662 e 0,735 na linha 542; e 0,640 e 0,702 na linha 050. A melhora em relação ao Regime A vem das paradas intermediárias, que passam a ser recuperadas com a maior densidade de leituras.
+No Regime B, o fitness médio subiu para 0,738 (ida) e 0,747 (volta) na linha 541; 0,652 e 0,737 na linha 542; e 0,643 e 0,698 na linha 050. A melhora em relação ao Regime A vem das paradas intermediárias, que passam a ser recuperadas com a maior densidade de leituras.
 
 As paradas de terminal e de aproximação, porém, continuam omitidas em cerca de 90\% a 100\% das viagens, o mesmo padrão observado no Regime A. Como essas paradas são omitidas do log quando o ônibus não se aproxima a menos de 150 metros, a omissão restante corresponde a um comportamento real da operação, e não a uma falha de reconstrução.
 
 \subsection{Desempenho e Gargalos}\label{subsec:regimeB_desempenho}
 
-Com a amostra maior, o gargalo do terminal fica mais bem caracterizado. Na linha 541, o trecho ``Rua São José dos Pinhais, 121 $\rightarrow$ Terminal Sítio Cercado'' teve 4,49 minutos (n = 207). Os tempos usam apenas passagens observadas nas duas paradas do trecho, e a proporção de eventos interpolados indica a parcela de horários estimados: no trecho crítico da 541, 47\% das passagens foram interpoladas.
+Com a amostra maior, os gargalos ficam mais bem caracterizados. Na linha 541, os trechos mais lentos foram ``Rua Cidade de Palmas, 723 $\rightarrow$ Rua São José dos Pinhais, 1167'', com 7,96 minutos (n = 114), e a aproximação ao terminal ``Rua São José dos Pinhais, 1167 $\rightarrow$ Terminal Sítio Cercado'', com 7,90 minutos (n = 140). Os tempos usam apenas passagens observadas nas duas paradas do trecho, e a proporção de eventos interpolados indica a parcela de horários estimados: no primeiro trecho, 45\% das passagens foram interpoladas.
 
 \section{Comparação entre os Intervalos de Coleta}\label{sec:comparacaoIntervalos}
 
@@ -86,9 +86,9 @@ O \autoref{quad:comparacao} compara os dois regimes nas três linhas.
 \begin{tabular}{|p{1.2cm}|p{2.6cm}|p{2.4cm}|p{2.4cm}|p{2.2cm}|p{2.2cm}|}
 \hline
 \textbf{Linha} & \textbf{Tipo} & \textbf{Fitness (A)} & \textbf{Fitness (B)} & \textbf{\% interp. (A)} & \textbf{\% interp. (B)} \\ \hline
-541 & Troncal & 0,456 / 0,380 & 0,744 / 0,753 & 23,1\% & 11,1\% \\ \hline
-542 & Alimentadora & 0,407 / 0,458 & 0,662 / 0,735 & 27,4\% & 17,4\% \\ \hline
-050 & Interbairros & 0,314 / 0,373 & 0,640 / 0,702 & 24,3\% & 13,2\% \\ \hline
+541 & Troncal & 0,456 / 0,380 & 0,738 / 0,747 & 23,1\% & 11,0\% \\ \hline
+542 & Alimentadora & 0,407 / 0,458 & 0,652 / 0,737 & 27,4\% & 17,0\% \\ \hline
+050 & Interbairros & 0,314 / 0,373 & 0,643 / 0,698 & 24,3\% & 13,1\% \\ \hline
 \end{tabular}
 \fonte{}
 \end{tabframed}
@@ -98,3 +98,55 @@ Todos os indicadores melhoram com a redução do intervalo de coleta. O fitness 
 No entanto, o fitness não chega a 1,0 em nenhum regime. A causa é a mesma nas três linhas: as paradas de terminal e de aproximação são omitidas em cerca de 90\% a 100\% das viagens, porque o ônibus se afasta mais de 150 metros da via ao entrar no terminal. Esse comportamento é sistemático e independe do intervalo de coleta, o que indica que não é ruído da reconstrução, mas uma característica real da operação.
 
 A comparação mostra, portanto, que o intervalo de coleta tem efeito grande na reconstrução e nas análises de processo, mas há um limite de qualidade imposto por fatores que a cadência não resolve, como a aproximação aos terminais.
+
+\section{Plataforma de Auditoria e Replay Operacional}\label{sec:plataformaAuditoria}
+
+A plataforma web descrita na Seção 3.7 disponibiliza os resultados em cinco telas, que organizam a análise da frota para o Centro de Controle Operacional (CCO). As figuras a seguir mostram a plataforma com os dados da linha 541 no Regime B.
+
+A primeira tela, a Auditoria Diária (CCO), apresentada na \autoref{fig:plataforma-auditoria}, traz uma visão consolidada da frota, com a classificação das linhas em Conforme, Atenção e Crítico e os indicadores globais de conformidade.
+
+\begin{figure}[htb]
+\caption{Auditoria Diária (CCO)}
+\label{fig:plataforma-auditoria}
+\includegraphics[width=\textwidth]{capturas/plataforma-auditoria.png}
+\fonte{}
+\end{figure}
+
+A tela de Conformidade Normativa (\autoref{fig:plataforma-conformidade}) mostra o fitness de cada viagem e o ranking das paradas mais omitidas, permitindo investigar uma viagem específica.
+
+\begin{figure}[htb]
+\caption{Conformidade Normativa}
+\label{fig:plataforma-conformidade}
+\includegraphics[width=\textwidth]{capturas/plataforma-conformidade.png}
+\fonte{}
+\end{figure}
+
+A tela de Descoberta de Processos (\autoref{fig:plataforma-petri}) renderiza a Rede de Petri descoberta pelo Inductive Miner, com navegação e zoom.
+
+\begin{figure}[htb]
+\caption{Descoberta de Processos (Rede de Petri)}
+\label{fig:plataforma-petri}
+\includegraphics[width=\textwidth]{capturas/plataforma-petri.png}
+\fonte{}
+\end{figure}
+
+A tela de Gargalos Operacionais (\autoref{fig:plataforma-desempenho}) mostra o Grafo Diretamente-Seguido (DFG) com os tempos médios entre paradas, destacando os trechos mais lentos.
+
+\begin{figure}[htb]
+\caption{Gargalos Operacionais (DFG)}
+\label{fig:plataforma-desempenho}
+\includegraphics[width=\textwidth]{capturas/plataforma-desempenho.png}
+\fonte{}
+\end{figure}
+
+A quinta tela, o Mapa de Replay, reproduz a posição dos veículos sobre o mapa com a biblioteca Deck.gl, permitindo acompanhar a evolução das viagens ao longo do dia.
+
+\section{Discussão dos Resultados}\label{sec:discussao}
+
+Os resultados mostram um efeito claro e consistente do intervalo de coleta na qualidade da reconstrução e nas análises de processo. Nas três linhas, de tipos diferentes, o fitness médio subiu com a redução do intervalo, e a proporção de eventos interpolados caiu. Isso confirma a hipótese central do trabalho: a cadência de coleta é um fator determinante para aplicar a Mineração de Processos a dados de GPS.
+
+A melhora se concentra nas paradas intermediárias do percurso. A 2 minutos, poucas leituras caem dentro da geocerca de 150 metros, e muitas passagens são omitidas; a 20 segundos, quase todas as paradas do meio do percurso são recuperadas. O fitness, porém, não chega a 1,0 em nenhum regime, porque as paradas das extremidades da rota continuam omitidas em cerca de 90\% a 100\% das viagens. Esse padrão independe da cadência, o que indica um comportamento real da operação: o ônibus se afasta do traçado ao entrar no terminal. O achado tem valor prático, pois mostra que a conformidade consegue separar as omissões esperadas nas aproximações de terminal das eventuais infrações reais.
+
+A comparação entre os regimes é limitada pelo fato de as duas coletas terem ocorrido em períodos diferentes (outubro de 2025 e outubro de 2026). Ainda assim, os resultados são robustos, pois a metodologia, a linha e a época do ano foram as mesmas, e o efeito observado é grande e consistente nas três linhas. Uma limitação adicional é que a metodologia foi desenvolvida para rotas lineares (ida e volta); rotas circulares exigem tratamento específico, deixado como trabalho futuro.
+
+Por fim, a plataforma web demonstra que os resultados podem ser levados ao ambiente operacional, com telas que apoiam a auditoria diária, a investigação de desvios e a identificação de gargalos.

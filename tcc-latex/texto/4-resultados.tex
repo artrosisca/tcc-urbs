@@ -16,18 +16,18 @@ Foram analisadas três linhas de tipos diferentes: a 541 (troncal), a 542 (alime
 \hline
 \textbf{Linha} & \textbf{Tipo} & \textbf{Regime} & \textbf{Viagens} & \textbf{Eventos} & \textbf{\% interp.} \\ \hline
 541 & Troncal & A & 956 & 5.092 & 23,1\% \\ \hline
-541 & Troncal & B & 1.191 & 9.833 & 11,0\% \\ \hline
+541 & Troncal & B & 1.443 & 12.161 & 11,0\% \\ \hline
 542 & Alimentadora & A & 542 & 2.460 & 27,4\% \\ \hline
 542 & Alimentadora & B & 967 & 6.395 & 17,0\% \\ \hline
 050 & Interbairros & A & 670 & 7.935 & 24,3\% \\ \hline
-050 & Interbairros & B & 723 & 14.889 & 13,1\% \\ \hline
+050 & Interbairros & B & 855 & 17.730 & 13,8\% \\ \hline
 \end{tabular}
 \fonte{}
 \end{tabframed}
 
 \subsection{Cenário 1: Linha Troncal Radial (Linha 541 - Bairro Novo A)}\label{subsec:cenario541}
 
-A linha 541 liga o bairro Bairro Novo A ao Terminal Sítio Cercado, com 13 paradas no sentido do bairro e 15 no sentido do terminal. No Regime A, o log tem 956 viagens e 5.092 eventos; no Regime B, 1.191 viagens e 9.833 eventos.
+A linha 541 liga o bairro Bairro Novo A ao Terminal Sítio Cercado, com 13 paradas no sentido do bairro e 15 no sentido do terminal. No Regime A, o log tem 956 viagens e 5.092 eventos; no Regime B, 1.443 viagens e 12.161 eventos.
 
 \subsection{Cenário 2: Linha Alimentadora (Linha 542 - Bairro Novo B)}\label{subsec:cenario542}
 
@@ -35,7 +35,7 @@ A linha 542 atende o bairro Bairro Novo B, com 17 paradas no sentido do bairro e
 
 \subsection{Cenário 3: Linha Interbairros (Linha 050 - Interbairros V)}\label{subsec:cenario050}
 
-A linha 050 liga o Terminal Oficinas ao Terminal Fazendinha, com 101 paradas no total (cerca de 50 por sentido). No Regime A, o log tem 670 viagens e 7.935 eventos; no Regime B, 723 viagens e 14.889 eventos.
+A linha 050 liga o Terminal Oficinas ao Terminal Fazendinha, com 101 paradas no total (cerca de 50 por sentido). No Regime A, o log tem 670 viagens e 7.935 eventos; no Regime B, 855 viagens e 17.730 eventos.
 
 As métricas usadas nas seções seguintes são: o fitness, um valor entre 0 e 1 que mede o quanto as viagens observadas seguem o itinerário planejado; a viagem conforme, que passa por todas as paradas previstas na ordem correta; o evento interpolado, cujo horário de passagem foi estimado por interpolação em vez de medido; e n, o tamanho da amostra de cada trecho na análise de desempenho.
 
@@ -67,13 +67,13 @@ Com o intervalo de 20 segundos, a quantidade de leituras é cerca de seis vezes 
 
 \subsection{Conformidade e Paradas Omitidas}\label{subsec:regimeB_conformidade}
 
-No Regime B, o fitness médio subiu para 0,738 (ida) e 0,747 (volta) na linha 541; 0,652 e 0,737 na linha 542; e 0,643 e 0,698 na linha 050. A melhora em relação ao Regime A vem das paradas intermediárias, que passam a ser recuperadas com a maior densidade de leituras.
+No Regime B, o fitness médio subiu para 0,747 (ida) e 0,747 (volta) na linha 541; 0,652 e 0,737 na linha 542; e 0,643 e 0,695 na linha 050. A melhora em relação ao Regime A vem das paradas intermediárias, que passam a ser recuperadas com a maior densidade de leituras.
 
 As paradas de terminal e de aproximação, porém, continuam omitidas em cerca de 90\% a 100\% das viagens, o mesmo padrão observado no Regime A. Como essas paradas são omitidas do log quando o ônibus não se aproxima a menos de 150 metros, a omissão restante corresponde a um comportamento real da operação, e não a uma falha de reconstrução.
 
 \subsection{Desempenho e Gargalos}\label{subsec:regimeB_desempenho}
 
-Com a amostra maior, os gargalos ficam mais bem caracterizados. Na linha 541, os trechos mais lentos foram ``Rua Cidade de Palmas, 723 $\rightarrow$ Rua São José dos Pinhais, 1167'', com 7,96 minutos (n = 114), e a aproximação ao terminal ``Rua São José dos Pinhais, 1167 $\rightarrow$ Terminal Sítio Cercado'', com 7,90 minutos (n = 140). Os tempos usam apenas passagens observadas nas duas paradas do trecho, e a proporção de eventos interpolados indica a parcela de horários estimados: no primeiro trecho, 45\% das passagens foram interpoladas.
+Com a amostra maior, os gargalos ficam mais bem caracterizados. Na linha 541, os trechos mais lentos foram a aproximação ao terminal ``Rua São José dos Pinhais, 1167 $\rightarrow$ Terminal Sítio Cercado'', com 8,03 minutos (n = 156), e ``Rua Cidade de Palmas, 723 $\rightarrow$ Rua São José dos Pinhais, 1167'', com 7,91 minutos (n = 146). Os tempos usam apenas passagens observadas nas duas paradas do trecho, e a proporção de eventos interpolados indica a parcela de horários estimados: no segundo trecho, 42\% das passagens foram interpoladas.
 
 \section{Comparação entre os Intervalos de Coleta}\label{sec:comparacaoIntervalos}
 
@@ -86,9 +86,9 @@ O \autoref{quad:comparacao} compara os dois regimes nas três linhas.
 \begin{tabular}{|p{1.2cm}|p{2.6cm}|p{2.4cm}|p{2.4cm}|p{2.2cm}|p{2.2cm}|}
 \hline
 \textbf{Linha} & \textbf{Tipo} & \textbf{Fitness (A)} & \textbf{Fitness (B)} & \textbf{\% interp. (A)} & \textbf{\% interp. (B)} \\ \hline
-541 & Troncal & 0,456 / 0,380 & 0,738 / 0,747 & 23,1\% & 11,0\% \\ \hline
+541 & Troncal & 0,456 / 0,380 & 0,747 / 0,747 & 23,1\% & 11,0\% \\ \hline
 542 & Alimentadora & 0,407 / 0,458 & 0,652 / 0,737 & 27,4\% & 17,0\% \\ \hline
-050 & Interbairros & 0,314 / 0,373 & 0,643 / 0,698 & 24,3\% & 13,1\% \\ \hline
+050 & Interbairros & 0,314 / 0,373 & 0,643 / 0,695 & 24,3\% & 13,8\% \\ \hline
 \end{tabular}
 \fonte{}
 \end{tabframed}

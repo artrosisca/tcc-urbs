@@ -59,7 +59,7 @@ request\_timestamp & Instante em que a posição foi coletada \\ \hline
 O cadastro estático reúne as informações de planejamento das linhas: as linhas (\texttt{getLinhas.php}), as paradas e a sequência de cada itinerário (\texttt{getPontosLinha.php}), os horários programados (\texttt{getTabelaLinha.php}) e o traçado físico das vias (\texttt{getShapeLinha.php}). Esses dados são guardados em cache local (\texttt{data/static\_cache}), em arquivos JSON por linha com as paradas, o traçado e a tabela de horários. Como parte do arquivo histórico deixa de ficar disponível no portal após um ano, utilizou-se também a base de dados mantida pelo Centro de Computação Científica e Software Livre (C3SL) da UFPR como fonte de backup, com consulta à API da URBS como alternativa.
 \section{Regimes de Coleta de Dados}\label{sec:regimes}
 
-Para avaliar o efeito do intervalo entre leituras de GPS, a coleta foi organizada em duas campanhas, chamadas de regimes de coleta. No Regime A (amostragem padrão da rede), os registros foram coletados a cada aproximadamente 120 segundos (2 minutos), entre 24 e 29 de outubro de 2025. No Regime B (alta frequência), os registros foram coletados a cada aproximadamente 20 segundos, entre 5 e 9 de outubro de 2026, com o mesmo coletor e processados com o mesmo código do Regime A, para que a comparação seja válida. O \autoref{quad:regimes} resume os dois regimes.
+Para avaliar o efeito do intervalo entre leituras de GPS, a coleta foi organizada em duas campanhas, chamadas de regimes de coleta. No Regime A (amostragem padrão da rede), os registros foram coletados a cada aproximadamente 120 segundos (2 minutos), entre 24 e 29 de outubro de 2025. No Regime B (alta frequência), os registros foram coletados a cada aproximadamente 20 segundos, entre 3 e 9 de outubro de 2026, com o mesmo coletor e processados com o mesmo código do Regime A, para que a comparação seja válida. O \autoref{quad:regimes} resume os dois regimes.
 
 \begin{tabframed}[htb]
 \caption{Regimes de coleta de dados}
@@ -68,7 +68,7 @@ Para avaliar o efeito do intervalo entre leituras de GPS, a coleta foi organizad
 \hline
 \textbf{Item} & \textbf{Regime A} & \textbf{Regime B} \\ \hline
 Intervalo entre leituras & ~120 s (2 min) & ~20 s \\ \hline
-Período & 24 a 29/10/2025 & 05 a 09/10/2026 \\ \hline
+Período & 24 a 29/10/2025 & 03 a 09/10/2026 \\ \hline
 Duração & ~130 horas & uma semana \\ \hline
 Dados brutos & 5,08 milhões de registros, em 127 arquivos horários & coleta própria a 20 s (frota completa) \\ \hline
 \end{tabular}

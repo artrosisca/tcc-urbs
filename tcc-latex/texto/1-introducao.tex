@@ -1,0 +1,44 @@
+% Capítulo 1 - Introdução
+
+\chapter{Introdução}\label{cap:introducao}
+
+O conceito de Cidades Inteligentes (Smart Cities) está intrinsecamente ligado à eficiência no uso de recursos e à melhoria da qualidade de vida urbana. No Brasil, entende-se que cidades inteligentes são aquelas ``comprometidas com o desenvolvimento urbano e a transformação digital sustentáveis, em seus aspectos econômico, ambiental e sociocultural'' \cite[p. 16]{pinho2022}. Neste cenário, o transporte público é um fator crítico, e a cidade de Curitiba destaca-se historicamente por sua Rede Integrada de Transporte (RIT), que opera com corredores exclusivos e terminais de integração \cite{kozievitch2016}.
+
+Com o avanço das tecnologias de informação, sistemas de transporte inteligentes passaram a gerar grandes volumes de dados, como registros de GPS (Global Positioning System). A Urbanização de Curitiba S.A. (URBS) disponibiliza esses dados publicamente \cite{urbs2024}, permitindo análises que podem revelar padrões de operação essenciais para o planejamento urbano. No entanto, a simples disponibilidade não garante a extração de conhecimento útil; é necessário aplicar técnicas avançadas, como a Mineração de Processos (Process Mining), que conecta a Ciência de Dados à gestão de processos para descobrir fluxos reais a partir de registros de eventos \cite{aalst2016}.
+
+Apesar da disponibilidade dos dados, sua utilização prática enfrenta desafios técnicos significativos. Embora os veículos da frota sejam equipados com GPS, \citeonline[p. 2]{borges2023} alertam que ``trabalhar com dados reais de GPS na prática pode se tornar uma tarefa muito difícil porque os veículos falham na comunicação do GPS''. Essas falhas geram lacunas (gaps) nas trajetórias, resultando em sequências temporais incompatíveis com os itinerários programados.
+
+Adicionalmente, os dispositivos GNSS (GPS) têm imprecisões que podem indicar que um veículo está fora da via ou dificultar a identificação da passagem por um ponto de parada \cite{martins2022}. Essas inconsistências dificultam a construção direta de um registro de eventos (event log) confiável, pré-requisito fundamental para a aplicação de algoritmos de Mineração de Processos. Portanto, a motivação deste trabalho baseia-se na oportunidade de aplicar técnicas computacionais robustas para tratar dados brutos de geolocalização, transformando-os em dados confiáveis para a Mineração de Processos. Essa abordagem permite ir além da simples reconstrução da ``jornada do ônibus'', habilitando análises avançadas de descoberta de fluxos, verificação de conformidade com as rotas planejadas e identificação precisa de gargalos de desempenho. Dessa forma, viabiliza-se uma gestão do transporte público fundamentada em evidências reais de execução, superando as limitações das análises baseadas exclusivamente em modelos teóricos estáticos.
+
+\section{Objetivos}\label{sec:objetivos}
+
+Esta seção apresenta as metas que norteiam o desenvolvimento deste trabalho, detalhando o objetivo geral da pesquisa e os objetivos específicos necessários para alcançá-lo.
+
+\subsection{Objetivo Geral}\label{subsec:objetivoGeral}
+
+Desenvolver e aplicar uma metodologia de Mineração de Processos para analisar a operação do transporte público de Curitiba (URBS), transformando dados brutos de GPS em registros de eventos estruturados para descobrir o modelo real de execução das linhas, verificar a conformidade com os itinerários planejados e diagnosticar gargalos de desempenho operacional.
+
+\subsection{Objetivos Específicos}\label{subsec:objetivosEspecificos}
+
+\begin{itemize}
+  \item Coletar e pré-processar dados brutos de GPS e tabelas de linhas da URBS;
+  \item Implementar algoritmos de Map Matching para identificar corretamente as paradas dos veículos nos pontos de ônibus, conforme proposto por \citeonline{martins2022};
+  \item Aplicar técnicas de Interpolação Temporal para corrigir falhas de sinal e preencher dados faltantes nas trajetórias, baseando-se em \citeonline{borges2023};
+  \item Construir um registro de eventos (event log) estruturado, compatível com ferramentas de mineração;
+  \item Utilizar a biblioteca PM4Py \cite{berti2019} para a descoberta de modelos de processos e análise de conformidade;
+  \item Analisar indicadores de desempenho, como tempos de viagem e paradas, identificando desvios em relação ao planejado;
+  \item Comparar os intervalos de coleta de aproximadamente 20 segundos e 2 minutos quanto ao efeito na reconstrução das viagens e nas análises de processo;
+  \item Desenvolver uma plataforma web que reúna os indicadores de conformidade e de desempenho para uso na fiscalização operacional.
+\end{itemize}
+
+\section{Justificativa}\label{sec:justificativa}
+
+A análise de dados de transporte público sob a ótica da Mineração de Processos justifica-se pela capacidade de fornecer insights que métodos tradicionais de análise de tráfego podem não capturar. Ao entender a jornada do ônibus como um processo de negócio, é possível identificar não apenas onde ocorrem atrasos, mas as causas raízes relacionadas ao fluxo operacional \cite{aalst2016}.
+
+Metodologicamente, este trabalho contribui ao demonstrar a aplicação prática de algoritmos de tratamento de dados espaciais, especificamente Map Matching e interpolação, como etapas fundamentais para a engenharia de logs de eventos em ambientes de mobilidade urbana. O uso de ferramentas open source como o PM4Py e a linguagem Python \cite{berti2019} reforça a reprodutibilidade e a acessibilidade da solução proposta, alinhando-se às iniciativas de transparência e dados abertos da administração pública.
+
+Na prática, os resultados e a plataforma desenvolvida oferecem aos fiscais do Centro de Controle Operacional (CCO) uma forma de auditar o cumprimento dos itinerários e localizar gargalos a partir dos dados reais de operação.
+
+\section{Estrutura do Trabalho}\label{sec:estrutura}
+
+Este trabalho está estruturado em cinco capítulos. O Capítulo 2 apresenta a Fundamentação Teórica e a Revisão da Literatura, com os conceitos de Mineração de Processos, o tratamento de dados de GPS e os trabalhos relacionados. O Capítulo 3 descreve a Metodologia e a Engenharia de Dados, detalhando a coleta, a reconstrução das trajetórias, a geração do log de eventos e a plataforma web de monitoramento. O Capítulo 4 apresenta os Resultados e a Discussão, com a caracterização dos cenários, a comparação entre os intervalos de coleta, a descoberta de processos, a avaliação de conformidade, a identificação de gargalos e a plataforma de auditoria. Por fim, o Capítulo 5 traz as Considerações Finais, as contribuições, as limitações e as propostas de trabalhos futuros.

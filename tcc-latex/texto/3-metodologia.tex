@@ -1,0 +1,184 @@
+% Capítulo 3 - Metodologia e Engenharia de Dados
+% OBS: conteúdo a ser escrito/realinhado a partir de docs/tcc/capitulo-3-metodologia.md
+
+\chapter{Metodologia e Engenharia de Dados}\label{cap:metodologia}
+
+Este capítulo descreve a metodologia e a engenharia de dados usadas para transformar os registros brutos de GPS da URBS em um log de eventos. O capítulo segue a ordem do pipeline: a arquitetura geral (Seção 3.1), a coleta e as características dos dados (Seção 3.2), os regimes de coleta (Seção 3.3), a filtragem pelo traçado (Seção 3.4), a reconstrução das trajetórias (Seção 3.5), a formatação do log (Seção 3.6) e a plataforma web (Seção 3.7).
+
+\section{Arquitetura Geral da Solução}\label{sec:arquitetura}
+
+A solução proposta organiza o trabalho em cinco etapas, desde a obtenção dos dados até a disponibilização dos resultados. A \autoref{fig:arquitetura} resume esse fluxo.
+
+\begin{figure}[htb]
+\caption{Arquitetura geral da solução}
+\label{fig:arquitetura}
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners, align=center, font=\footnotesize, text width=2.4cm, minimum height=1.2cm, inner sep=3pt},
+  arrow/.style={-{Latex[length=2mm]}, thick}
+]
+\node[box] (api) {Obtenção dos dados\\API da URBS e base do C3SL};
+\node[box, right=5mm of api] (col) {Coleta contínua\\coletor automático 24/7};
+\node[box, right=5mm of col] (etl) {Engenharia de dados\\limpeza e reconstrução das viagens};
+\node[box, right=5mm of etl] (min) {Mineração de processos\\descoberta, conformidade e desempenho};
+\node[box, right=5mm of min] (plat) {Plataforma web\\auditoria e replay operacional};
+\draw[arrow] (api) -- (col);
+\draw[arrow] (col) -- (etl);
+\draw[arrow] (etl) -- (min);
+\draw[arrow] (min) -- (plat);
+\end{tikzpicture}
+\fonte{}
+\end{figure}
+
+A primeira etapa consiste na obtenção e no acesso aos dados da URBS, que envolvem tanto a telemetria dos veículos quanto o cadastro estático das linhas. A segunda etapa é a aquisição contínua desses dados por um coletor automático, que os grava em disco. A terceira etapa é a engenharia de dados: a partir da telemetria bruta, os registros são limpos e as viagens são reconstruídas até a formação de um log de eventos. A quarta etapa aplica a Mineração de Processos sobre esse log, na descoberta de modelos, na verificação de conformidade e na análise de desempenho. A quinta etapa disponibiliza os resultados em uma plataforma web de auditoria operacional. As seções seguintes detalham cada uma dessas etapas.
+
+\section{Coleta e Características dos Dados da URBS}\label{sec:dadosURBS}
+
+Os dados utilizados neste trabalho vêm do Portal de Dados Abertos de Curitiba, mantido pela URBS \cite{urbs2024}, e se dividem em dois grupos: a telemetria dinâmica e o cadastro estático.
+
+A telemetria dinâmica é obtida pelo serviço \texttt{getVeiculos.php}, que retorna, a cada consulta, a posição instantânea de cada veículo em operação. Para coletar esses dados de forma contínua, desenvolveu-se um coletor automático em Python (\texttt{src/coleta/coletor\_urbs.py}), executado 24 horas por dia, que grava os registros em arquivos CSV organizados por dia e hora, no padrão \texttt{data/dados\_em\_tempo\_real\_2026/AAAA-MM-DD/AAAA-MM-DD\_HH-00.csv}. Cada registro contém os campos apresentados no \autoref{quad:campos}.
+
+\begin{tabframed}[htb]
+\caption{Campos da telemetria bruta dos veículos}
+\label{quad:campos}
+\begin{tabular}{|p{3.2cm}|p{10.5cm}|}
+\hline
+\textbf{Campo} & \textbf{Descrição} \\ \hline
+COD & Código do veículo \\ \hline
+LAT e LON & Latitude e longitude da posição do veículo \\ \hline
+CODIGOLINHA & Código da linha em operação \\ \hline
+TABELA & Código da tabela de horários em execução \\ \hline
+SENT & Sentido da viagem (ida ou volta) \\ \hline
+SITUACAO & Situação operacional informada pelo veículo (ex.: em rota, recolhido) \\ \hline
+REFRESH & Horário da última atualização do veículo \\ \hline
+request\_timestamp & Instante em que a posição foi coletada \\ \hline
+\end{tabular}
+\fonte{}
+\end{tabframed}
+
+O cadastro estático reúne as informações de planejamento das linhas: as linhas (\texttt{getLinhas.php}), as paradas e a sequência de cada itinerário (\texttt{getPontosLinha.php}), os horários programados (\texttt{getTabelaLinha.php}) e o traçado físico das vias (\texttt{getShapeLinha.php}). Esses dados são guardados em cache local (\texttt{data/static\_cache}), em arquivos JSON por linha com as paradas, o traçado e a tabela de horários. Como parte do arquivo histórico deixa de ficar disponível no portal após um ano, utilizou-se também a base de dados mantida pelo Centro de Computação Científica e Software Livre (C3SL) da UFPR como fonte de backup, com consulta à API da URBS como alternativa.
+\section{Regimes de Coleta de Dados}\label{sec:regimes}
+
+Para avaliar o efeito do intervalo entre leituras de GPS, a coleta foi organizada em duas campanhas, chamadas de regimes de coleta. No Regime A (amostragem padrão da rede), os registros foram coletados a cada aproximadamente 120 segundos (2 minutos), entre 24 e 29 de outubro de 2025. No Regime B (alta frequência), os registros foram coletados a cada aproximadamente 20 segundos, entre 5 e 9 de outubro de 2026, com o mesmo coletor e processados com o mesmo código do Regime A, para que a comparação seja válida. O \autoref{quad:regimes} resume os dois regimes.
+
+\begin{tabframed}[htb]
+\caption{Regimes de coleta de dados}
+\label{quad:regimes}
+\begin{tabular}{|p{4cm}|p{4.7cm}|p{4.7cm}|}
+\hline
+\textbf{Item} & \textbf{Regime A} & \textbf{Regime B} \\ \hline
+Intervalo entre leituras & ~120 s (2 min) & ~20 s \\ \hline
+Período & 24 a 29/10/2025 & 05 a 09/10/2026 \\ \hline
+Duração & ~130 horas & uma semana \\ \hline
+Dados brutos & 5,08 milhões de registros, em 127 arquivos horários & coleta própria a 20 s (frota completa) \\ \hline
+\end{tabular}
+\fonte{}
+\end{tabframed}
+
+O Regime A corresponde à amostragem padrão disponibilizada pela URBS, enquanto o Regime B corresponde a uma coleta de alta frequência feita com o coletor descrito na Seção 3.2. A comparação entre os dois, apresentada no Capítulo 4, mostra o impacto do intervalo de coleta na reconstrução das viagens e nas análises de processo.
+\section{Filtragem dos Dados pelo Traçado da Linha}\label{sec:filtragemShape}
+
+Antes de reconstruir as viagens, os registros brutos passam por uma etapa de limpeza, implementada em \texttt{src/etl/trajectory.py}, que aplica filtros em sequência:
+
+\begin{enumerate}
+  \item remoção de registros sem latitude ou longitude;
+  \item remoção de registros de veículos recolhidos (garagem), identificados pelo código REC;
+  \item remoção de registros sem estado operacional ou sem sentido (\texttt{SENT});
+  \item remoção de leituras duplicadas, com o mesmo veículo e o mesmo \texttt{request\_timestamp};
+  \item remoção de leituras estacionárias: quando a distância entre duas leituras consecutivas do mesmo veículo é menor que 5 metros, a segunda é descartada, o que evita o ruído de GPS de veículo parado;
+  \item remoção de leituras fora do traçado: descarta leituras cuja distância mínima ao traçado da linha seja maior que 500 metros.
+\end{enumerate}
+
+O último filtro é o ponto central desta seção. Em abordagens de geofencing, as leituras costumam ser validadas apenas pela proximidade às paradas, o que descarta indevidamente leituras válidas em corredores longos, onde duas paradas consecutivas distam mais de 1 km. Aqui, a validação é feita contra o traçado contínuo da linha (\texttt{shapeLinha}): calcula-se a menor distância entre a leitura e os segmentos que formam a via, e só são descartadas as leituras com distância maior que 500 metros, tratadas como desvios anômalos. O filtro preserva leituras válidas em vias expressas e remove apenas os pontos claramente fora do itinerário.
+\section{Reconstrução de Trajetórias e Geração de Viagens}\label{sec:reconstrucao}
+
+A transformação das leituras de GPS em eventos de processo é feita por etapas, descritas nas subseções a seguir.
+
+\subsection{Separação e Identificação das Viagens}\label{subsec:separacaoViagens}
+
+Na Mineração de Processos, cada caso corresponde a uma execução completa do processo. Aqui, cada caso é uma viagem direcional, ou seja, um percurso completo de ida ou de volta.
+
+Para dividir o dia em viagens, o código usa primeiro o campo \texttt{SENT}, que informa o sentido executado (ida ou volta). O Traçado não é usado como critério principal, porque ele representa apenas a geometria da via e não informa os horários de início e de fim de cada viagem. A Tabela de horários também não é usada nesse corte: ela traz os horários planejados, e o objetivo é reconstruir as viagens realmente executadas. A Tabela é usada no Capítulo 4, na análise de atraso em relação ao programado.
+
+Uma viagem termina e outra começa quando ocorre uma destas condições:
+
+\begin{itemize}
+  \item mudança de sentido (\texttt{SENT}) entre leituras consecutivas;
+  \item lacuna de tempo maior que 10 minutos entre leituras, tratada como falha de comunicação.
+\end{itemize}
+
+Quando o sentido não está disponível, usa-se uma regra alternativa baseada no Traçado: mede-se o avanço do veículo ao longo do traçado e, quando esse avanço retrocede mais de 300 metros em relação ao ponto mais avançado, entende-se que o veículo mudou de sentido e uma nova viagem começa.
+
+Cada viagem recebe um identificador no formato \texttt{\{veículo\}\_\{linha\}\_\{tabela\}\_\{data\}\_V\{índice\}}.
+
+\subsection{Ajuste dos Pontos de GPS ao Traçado da Linha}\label{subsec:mapmatchingMetodo}
+
+Com as viagens separadas, cada leitura de GPS é associada a uma posição sobre o traçado físico da linha, por Map Matching (Seção 2.2.3). Utiliza-se o método probabilístico de \citeonline{newson2009}, baseado em um Modelo Oculto de Markov resolvido pelo algoritmo de Viterbi. Para cada leitura, são considerados candidatos os pontos do traçado dentro de um raio de busca de 150 metros. O modelo combina:
+
+\begin{itemize}
+  \item probabilidade de emissão: quanto mais próxima a leitura está do candidato, maior a probabilidade, com desvio padrão de 30 metros para o erro de medição;
+  \item probabilidade de transição: quanto mais o deslocamento entre duas leituras consecutivas se aproxima da distância percorrida ao longo do traçado, maior a probabilidade, com escala de 50 metros.
+\end{itemize}
+
+A sequência de posições mais provável, obtida pelo caminho de Viterbi, devolve para cada leitura a posição acumulada sobre o traçado (coordenada curvilínea), usada na etapa seguinte.
+
+\subsection{Identificação das Paradas e Horários de Passagem}\label{subsec:paradasHorarios}
+
+Cada parada do cadastro é projetada no Traçado, o que dá a sua posição acumulada sobre a via. Com os pares (posição, tempo) das leituras, ajusta-se a interpolação por PCHIP (Seção 2.2.3), que estima o instante de passagem pela posição de cada parada. Para garantir que o tempo não volte, os instantes são ajustados de forma monotônica: entre duas paradas consecutivas, a diferença de tempo não pode ser menor que a distância dividida por aproximadamente 80 km/h. Esse ajuste evita incoerências, como registrar a passagem por uma parada antes da parada anterior. O valor de 80 km/h representa a velocidade máxima possível do ônibus: o tempo entre duas paradas não pode ser menor que o tempo necessário para percorrer aquela distância nessa velocidade.
+
+Uma parada só gera evento se a viagem passar a até 150 metros dela. Se a distância mínima for maior que 150 metros, o evento é omitido. Essa omissão é intencional: a ausência do evento no log indica que a parada não foi atendida, e os algoritmos de conformidade (Capítulo 4) podem detectar a infração.
+
+\subsection{Tratamento de Incertezas do GPS e Gaps de Coleta}\label{subsec:incertezasGaps}
+
+Os registros de GPS têm ruído e lacunas. A interpolação preenche as lacunas, mas não é possível saber com certeza se o veículo estava exatamente sobre a parada. Para registrar essa incerteza, cada evento recebe dois campos:
+
+\begin{itemize}
+  \item \texttt{interpolated}: verdadeiro quando a leitura mais próxima da parada está a mais de 100 metros; nesse caso, o instante de passagem veio principalmente da interpolação;
+  \item \texttt{distance}: a distância mínima observada entre a viagem e a parada.
+\end{itemize}
+
+Assim, os eventos com maior incerteza ficam identificados. O Capítulo 4 mostra como a análise de desempenho usa essa informação: os tempos entre paradas são calculados apenas com passagens observadas, e a proporção de eventos interpolados é informada em cada trecho.
+
+\subsection{Critérios de Qualidade e Descarte de Viagens Incompletas}\label{subsec:qualidadeViagens}
+
+Para evitar que viagens degradadas distorçam os resultados, aplicam-se critérios de descarte, que compõem a taxa de censura operacional. Uma viagem candidata é descartada quando:
+
+\begin{itemize}
+  \item tem menos de 3 leituras de GPS, quantidade insuficiente para reconstruir o percurso;
+  \item tem mais de 90\% dos eventos marcados como interpolados, o que indica que a reconstrução tem pouco apoio em leituras reais.
+\end{itemize}
+
+A taxa de censura é a razão entre o número de viagens descartadas e o número de viagens candidatas. No Capítulo 4, essa taxa é apresentada para cada regime.
+\section{Formatação do Log de Eventos no Padrão OpenXES}\label{sec:openxes}
+
+Os eventos gerados são consolidados em um Log de Eventos no padrão XES (eXtensible Event Stream) \cite{ieee1849}, formato comum usado por ferramentas de Mineração de Processos. O log é gravado em dois formatos em \texttt{data/dados\_processados}: CSV, para análise com bibliotecas Python, e XES, serializado pelo PM4Py para uso direto nas ferramentas. Cada evento tem os atributos descritos no \autoref{quad:log}.
+
+\begin{tabframed}[htb]
+\caption{Atributos do Log de Eventos}
+\label{quad:log}
+\begin{tabular}{|p{3.6cm}|p{10cm}|}
+\hline
+\textbf{Atributo} & \textbf{Descrição} \\ \hline
+\texttt{case:concept:name} & Identificador da viagem (caso) \\ \hline
+\texttt{concept:name} & Nome canônico da atividade, no formato \texttt{PASSAGEM\_\{SEQ\}\_\{NOME\}} \\ \hline
+\texttt{time:timestamp} & Instante estimado de passagem pela parada \\ \hline
+\texttt{org:resource} & Código do veículo que executou a viagem \\ \hline
+\texttt{tabela} & Código da tabela de horários da viagem \\ \hline
+\texttt{gps\_direction} & Sentido executado (ida ou volta) \\ \hline
+\texttt{interpolated} & Indica se o instante veio principalmente da interpolação \\ \hline
+\texttt{distance} & Distância mínima observada entre a viagem e a parada \\ \hline
+\end{tabular}
+\fonte{}
+\end{tabframed}
+
+O uso de uma chave canônica de atividade, no formato \texttt{PASSAGEM\_\{SEQ\}\_\{NOME\}}, evita ambiguidades quando a linha tem paradas com o mesmo nome em posições diferentes, o que geraria laços falsos no modelo de processo.
+
+\section{Desenvolvimento da Plataforma Web e Dashboard de Monitoramento}\label{sec:plataformaWeb}
+
+Para levar os resultados ao ambiente de fiscalização, desenvolveu-se uma plataforma web com arquitetura separada em backend e frontend.
+
+O backend foi implementado em FastAPI (Python) e disponibiliza serviços REST que consultam os dados processados e executam a mineração com o PM4Py. Além das rotas de consulta, a rota \texttt{/api/process-stream} usa Server-Sent Events (SSE) para enviar o progresso da mineração sob demanda, sem bloquear a interface.
+
+O frontend foi implementado em React com Tailwind CSS e organiza a análise em cinco telas: a Auditoria Diária (CCO), com visão consolidada da frota e classificação das linhas em Conforme, Atenção e Crítico; a Conformidade, com a fidelidade do modelo e o ranking de paradas omitidas; a Descoberta de Processos, com a Rede de Petri gerada pelo Inductive Miner; o Desempenho, com o Grafo Diretamente-Seguido (DFG) e os tempos entre paradas; e o Replay geoespacial, que reproduz a posição dos veículos sobre o mapa com a biblioteca Deck.gl.
+
+A plataforma é apresentada em detalhe no Capítulo 4, com as telas e os resultados.

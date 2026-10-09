@@ -1,0 +1,100 @@
+% Capítulo 4 - Resultados e Discussão
+
+\chapter{Resultados e Discussão}\label{cap:resultados}
+
+Este capítulo apresenta os resultados da aplicação da metodologia descrita no Capítulo 3, comparando dois regimes de coleta: o Regime A, com leituras a cada aproximadamente 2 minutos, e o Regime B, com leituras a cada aproximadamente 20 segundos. As seções 4.2 e 4.3 analisam cada regime em separado, e a Seção 4.4 compara os dois.
+
+\section{Caracterização dos Cenários Experimentais}\label{sec:cenarios}
+
+Foram analisadas três linhas de tipos diferentes: a 541 (troncal), a 542 (alimentadora) e a 050 (interbairros). O \autoref{quad:cenarios} caracteriza cada linha em cada regime.
+
+\begin{tabframed}[htb]
+\caption{Caracterização dos cenários experimentais}
+\label{quad:cenarios}
+\footnotesize
+\begin{tabular}{|p{1.4cm}|p{2.8cm}|p{1.6cm}|p{1.8cm}|p{1.9cm}|p{1.9cm}|}
+\hline
+\textbf{Linha} & \textbf{Tipo} & \textbf{Regime} & \textbf{Viagens} & \textbf{Eventos} & \textbf{\% interp.} \\ \hline
+541 & Troncal & A & 956 & 5.092 & 23,1\% \\ \hline
+541 & Troncal & B & 782 & 6.570 & 11,1\% \\ \hline
+542 & Alimentadora & A & 542 & 2.460 & 27,4\% \\ \hline
+542 & Alimentadora & B & 622 & 4.140 & 17,4\% \\ \hline
+050 & Interbairros & A & 670 & 7.935 & 24,3\% \\ \hline
+050 & Interbairros & B & 473 & 9.781 & 13,2\% \\ \hline
+\end{tabular}
+\fonte{}
+\end{tabframed}
+
+\subsection{Cenário 1: Linha Troncal Radial (Linha 541 - Bairro Novo A)}\label{subsec:cenario541}
+
+A linha 541 liga o bairro Bairro Novo A ao Terminal Sítio Cercado, com 13 paradas no sentido do bairro e 15 no sentido do terminal. No Regime A, o log tem 956 viagens e 5.092 eventos; no Regime B, 782 viagens e 6.570 eventos.
+
+\subsection{Cenário 2: Linha Alimentadora (Linha 542 - Bairro Novo B)}\label{subsec:cenario542}
+
+A linha 542 atende o bairro Bairro Novo B, com 17 paradas no sentido do bairro e 12 no sentido do terminal. No Regime A, o log tem 542 viagens e 2.460 eventos; no Regime B, 622 viagens e 4.140 eventos.
+
+\subsection{Cenário 3: Linha Interbairros (Linha 050 - Interbairros V)}\label{subsec:cenario050}
+
+A linha 050 liga o Terminal Oficinas ao Terminal Fazendinha, com 101 paradas no total (cerca de 50 por sentido). No Regime A, o log tem 670 viagens e 7.935 eventos; no Regime B, 473 viagens e 9.781 eventos.
+
+As métricas usadas nas seções seguintes são: o fitness, um valor entre 0 e 1 que mede o quanto as viagens observadas seguem o itinerário planejado; a viagem conforme, que passa por todas as paradas previstas na ordem correta; o evento interpolado, cujo horário de passagem foi estimado por interpolação em vez de medido; e n, o tamanho da amostra de cada trecho na análise de desempenho.
+
+\section{Resultados do Regime A}\label{sec:regimeA}
+
+O Regime A usa leituras a cada aproximadamente 2 minutos.
+
+\subsection{Descoberta de Processos}\label{subsec:regimeA_descoberta}
+
+O modelo foi descoberto com o Inductive Miner sobre o log do Regime A. Como o intervalo de 2 minutos é grande, muitas leituras ficam fora da geocerca de 150 metros das paradas e várias passagens não geram evento. O log fica incompleto e o modelo descoberto representa apenas parte do percurso real.
+
+\subsection{Conformidade e Paradas Omitidas}\label{subsec:regimeA_conformidade}
+
+No Regime A, o fitness médio foi 0,456 (ida) e 0,380 (volta) na linha 541; 0,407 e 0,458 na linha 542; e 0,314 e 0,373 na linha 050. Nenhum regime apresentou viagens totalmente conformes. Esses valores baixos indicam que o log observado se afasta do itinerário planejado. A causa principal é a reconstrução esparsa: a 2 minutos, poucas paradas ficam a menos de 150 metros de alguma leitura e, por isso, suas passagens são omitidas.
+
+Em todas as linhas, as paradas mais omitidas ficam nas extremidades da rota, junto aos terminais e aos retornos. Na linha 541, por exemplo, as paradas ``Rua São José dos Pinhais, 369'' e ``Rua São José dos Pinhais, 669'' são omitidas em cerca de 97\% das viagens; na 542 e na 050, o mesmo ocorre com as paradas dos terminais. A causa é a aproximação ao terminal: ao entrar no terminal ou fazer o retorno, o ônibus se afasta mais de 150 metros do traçado da via, e a geocerca marca essas paradas como não atendidas. Trata-se, portanto, de um comportamento real da operação, e não de uma falha de reconstrução.
+
+\subsection{Desempenho e Gargalos}\label{subsec:regimeA_desempenho}
+
+Cada trecho é avaliado com base nas passagens observadas nas duas paradas que o delimitam, e o tamanho dessa amostra é indicado por n. Trechos com n menor que 30 foram considerados pouco confiáveis, e apenas aqueles com n acima de 100 entraram no ranking de gargalos. No Regime A, a maior parte dos trechos tem n entre 1 e 24, o que torna o ranking pouco confiável. Na linha 541, o trecho com amostra mais razoável foi ``Rua São José dos Pinhais, 1167 $\rightarrow$ Terminal Sítio Cercado'', com 6,75 minutos (n = 188). No geral, a cadência de 2 minutos não sustenta uma análise de desempenho confiável.
+
+\section{Resultados do Regime B}\label{sec:regimeB}
+
+O Regime B usa leituras a cada aproximadamente 20 segundos.
+
+\subsection{Descoberta de Processos}\label{subsec:regimeB_descoberta}
+
+Com o intervalo de 20 segundos, a quantidade de leituras é cerca de seis vezes maior. O log passa a cobrir quase todas as paradas do meio do percurso, e o modelo descoberto se aproxima mais da sequência real de paradas.
+
+\subsection{Conformidade e Paradas Omitidas}\label{subsec:regimeB_conformidade}
+
+No Regime B, o fitness médio subiu para 0,744 (ida) e 0,753 (volta) na linha 541; 0,662 e 0,735 na linha 542; e 0,640 e 0,702 na linha 050. A melhora em relação ao Regime A vem das paradas intermediárias, que passam a ser recuperadas com a maior densidade de leituras.
+
+As paradas de terminal e de aproximação, porém, continuam omitidas em cerca de 90\% a 100\% das viagens, o mesmo padrão observado no Regime A. Como essas paradas são omitidas do log quando o ônibus não se aproxima a menos de 150 metros, a omissão restante corresponde a um comportamento real da operação, e não a uma falha de reconstrução.
+
+\subsection{Desempenho e Gargalos}\label{subsec:regimeB_desempenho}
+
+Com a amostra maior, o gargalo do terminal fica mais bem caracterizado. Na linha 541, o trecho ``Rua São José dos Pinhais, 121 $\rightarrow$ Terminal Sítio Cercado'' teve 4,49 minutos (n = 207). Os tempos usam apenas passagens observadas nas duas paradas do trecho, e a proporção de eventos interpolados indica a parcela de horários estimados: no trecho crítico da 541, 47\% das passagens foram interpoladas.
+
+\section{Comparação entre os Intervalos de Coleta}\label{sec:comparacaoIntervalos}
+
+O \autoref{quad:comparacao} compara os dois regimes nas três linhas.
+
+\begin{tabframed}[htb]
+\caption{Comparação entre os regimes de coleta}
+\label{quad:comparacao}
+\footnotesize
+\begin{tabular}{|p{1.2cm}|p{2.6cm}|p{2.4cm}|p{2.4cm}|p{2.2cm}|p{2.2cm}|}
+\hline
+\textbf{Linha} & \textbf{Tipo} & \textbf{Fitness (A)} & \textbf{Fitness (B)} & \textbf{\% interp. (A)} & \textbf{\% interp. (B)} \\ \hline
+541 & Troncal & 0,456 / 0,380 & 0,744 / 0,753 & 23,1\% & 11,1\% \\ \hline
+542 & Alimentadora & 0,407 / 0,458 & 0,662 / 0,735 & 27,4\% & 17,4\% \\ \hline
+050 & Interbairros & 0,314 / 0,373 & 0,640 / 0,702 & 24,3\% & 13,2\% \\ \hline
+\end{tabular}
+\fonte{}
+\end{tabframed}
+
+Todos os indicadores melhoram com a redução do intervalo de coleta. O fitness médio sobe em todas as linhas, e a proporção de eventos interpolados cai pela metade ou mais. A melhora vem principalmente das paradas intermediárias: a 2 minutos, poucas leituras caem perto das paradas e muitas passagens são omitidas; a 20 segundos, quase todas as paradas do meio do percurso são recuperadas.
+
+No entanto, o fitness não chega a 1,0 em nenhum regime. A causa é a mesma nas três linhas: as paradas de terminal e de aproximação são omitidas em cerca de 90\% a 100\% das viagens, porque o ônibus se afasta mais de 150 metros da via ao entrar no terminal. Esse comportamento é sistemático e independe do intervalo de coleta, o que indica que não é ruído da reconstrução, mas uma característica real da operação.
+
+A comparação mostra, portanto, que o intervalo de coleta tem efeito grande na reconstrução e nas análises de processo, mas há um limite de qualidade imposto por fatores que a cadência não resolve, como a aproximação aos terminais.

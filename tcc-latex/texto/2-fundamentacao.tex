@@ -1,0 +1,97 @@
+% Capítulo 2 - Fundamentação Teórica e Revisão da Literatura
+
+\chapter{Fundamentação Teórica e Revisão da Literatura}\label{cap:fundamentacao}
+
+Este capítulo apresenta os conceitos essenciais para a compreensão deste trabalho, abrangendo a Mineração de Processos, algoritmos de descoberta, ferramentas computacionais e técnicas de análise de dados espaciais aplicadas ao transporte público.
+
+\section{Conceitos de Mineração de Processos}\label{sec:conceitosMP}
+
+A Mineração de Processos (MP) é uma área que conecta a Ciência de Dados tradicional à gestão de processos de negócio. O objetivo principal é extrair conhecimento a partir de registros de eventos armazenados em sistemas de informação. Segundo \citeonline{berti2019}, essa disciplina fornece ferramentas e técnicas para aumentar o conhecimento geral de um processo (de negócio), por meio da análise dos dados de eventos armazenados durante a execução do processo.
+
+Ao contrário de modelos estáticos desenhados manualmente, a MP utiliza dados factuais para revelar como os processos ocorrem na realidade, permitindo identificar desvios e ineficiências com base em evidências.
+
+\subsection{Descoberta, Conformidade e Desempenho}\label{subsec:tresPilaresMP}
+
+A MP é tradicionalmente dividida em três tipos de análise, conforme descrito na literatura:
+
+\begin{itemize}
+  \item \textbf{Descoberta (Process Discovery):} foca na ``descoberta de um modelo de processo que descreve com precisão o processo em estudo'' \cite[p. 2]{berti2019}, utilizando um registro de eventos como entrada para construir automaticamente um modelo sem a necessidade de informações prévias.
+  \item \textbf{Verificação de Conformidade (Conformance Checking):} consiste em verificar ``em que grau um determinado modelo de processo descreve com precisão os dados do evento'' \cite[p. 2]{berti2019}. No contexto de transporte, isso permite comparar a rota realizada pelo ônibus com o itinerário planejado.
+  \item \textbf{Aprimoramento (Enhancement):} visa melhorar os modelos existentes ``projetando informações interessantes, por exemplo, fluxo de casos e/ou medidas de desempenho, no topo de um modelo'' \cite[p. 2]{berti2019}.
+\end{itemize}
+
+\subsection{Algoritmos de Descoberta: Alpha Miner e Inductive Miner}\label{subsec:algoritmosDescoberta}
+
+A descoberta de processos utiliza um registro de eventos (event log) como entrada para construir automaticamente um modelo de processo, sem a necessidade de informações prévias. Dentre os diversos algoritmos disponíveis na literatura, destacam-se o Alpha Miner e o Inductive Miner, que adotam abordagens distintas para a reconstrução do fluxo de atividades.
+
+O algoritmo Alpha Miner é considerado um dos métodos seminais na área de Mineração de Processos. Segundo \citeonline{aalst2016}, este algoritmo analisa as relações de ``seguimento direto'' (dependência causal) entre as atividades registradas no log para inferir a estrutura da Rede de Petri. Embora seja fundamental para a compreensão teórica da disciplina, o Alpha Miner apresenta limitações práticas significativas ao lidar com dados do mundo real, sendo incapaz de modelar corretamente estruturas complexas (como loops curtos) e demonstrando alta sensibilidade a ruídos e dados incompletos.
+
+Para cenários que exigem maior robustez, como é o caso da análise de dados de transporte sujeitos a falhas de GPS, utiliza-se o Inductive Miner, proposto por \citeonline{leemans2013}. Este algoritmo opera através da detecção de cortes recursivos no registro de eventos, construindo uma árvore de processos que é posteriormente convertida em uma Rede de Petri. Conforme destacam \citeonline{berti2019}, a principal vantagem do Inductive Miner é a garantia de descoberta de modelos sólidos (sound models), ou seja, livres de deadlocks e outras anomalias estruturais, tornando-o a escolha preferencial para lidar com grandes volumes de dados e comportamentos excepcionais.
+
+\subsection{Ferramentas de Mineração de Processos: ProM e PM4Py}\label{subsec:ferramentasMP}
+
+Para a implementação das técnicas de mineração, utiliza-se a biblioteca PM4Py (Process Mining for Python). Esta ferramenta foi desenvolvida para preencher a lacuna no suporte a algoritmos personalizáveis, permitindo ``a fácil integração de algoritmos de mineração de processos com algoritmos de outros campos da ciência de dados'', como as bibliotecas pandas e scikit-learn. Além disso, diferentemente de ferramentas focadas em interface gráfica, como o ProM, o PM4Py facilita a ``execução repetida de experimentos em larga escala'' \cite{berti2019}. Os logs de eventos tratados por essas ferramentas seguem o padrão XES (eXtensible Event Stream) \cite{ieee1849}, que padroniza a troca de arquivos entre ferramentas de mineração.
+
+\section{Análise de Dados em Transporte Público}\label{sec:analiseTransporte}
+
+A análise eficaz de sistemas de transporte público depende da capacidade de converter grandes volumes de dados brutos em informações estruturadas. A simples coleta de coordenadas geográficas não é suficiente para a aplicação de técnicas avançadas de análise; é necessário um tratamento rigoroso para contextualizar esses dados. Conforme ressaltam \citeonline{borges2023}, um processo robusto de limpeza e preparação da base de dados é indispensável para recuperar o volume de dados válidos e evitar descartes desnecessários causados por inconsistências nas trajetórias.
+
+Esta seção explora os conceitos fundamentais e as técnicas computacionais necessárias para transformar dados espaciais contínuos em eventos discretos de processo.
+
+\subsection{Dados de GPS e Mobilidade Urbana}\label{subsec:gpsMobilidade}
+
+O uso de dados de GPS permite rastrear a posição dos veículos em tempo real, sendo fundamental para a gestão da mobilidade urbana. No entanto, trabalhar com esses dados apresenta desafios técnicos. Na prática, essa tarefa pode ser difícil porque os veículos falham na comunicação do GPS, gerando gaps que podem afetar os resultados das análises \cite{borges2023}.
+
+Além disso, a análise da movimentação com dados de GPS enfrenta problemas relacionados às imprecisões inerentes aos dispositivos GNSS, que podem posicionar o veículo fora da via correta ou dificultar a detecção exata da passagem por um ponto \cite{martins2022}.
+
+\subsection{APIs de Dados Abertos no Transporte Público}\label{subsec:apis}
+
+A disponibilização de dados através de APIs públicas é essencial para a transparência em cidades inteligentes. Em Curitiba, a base de dados da URBS \cite{urbs2024} é alimentada diariamente e mantém informações relacionadas aos dados operacionais dos ônibus, como itinerário e posição do ônibus no tempo. O acesso a esses dados dinâmicos permite a reconstrução das trajetórias para análise de desempenho e conformidade.
+
+\subsection{Ajuste de Rotas (Map-Matching) e Interpolação de Trajetórias}\label{subsec:mapmatching}
+
+Os dados de GPS indicam onde o veículo estava, mas não dizem em que ponto da via ele estava. Para comparar a viagem executada com o itinerário planejado, é necessário associar cada leitura de GPS a uma posição sobre o traçado da linha. Essa associação é feita pelo Map Matching (casamento de mapa), definido por \citeonline{martins2022} como o conjunto de algoritmos que fixam dados de localização sobre uma rede espacial de vias.
+
+As abordagens mais simples associam cada leitura ao ponto mais próximo da via (junção espacial). Esse critério funciona quando o GPS é preciso, mas erra com frequência em vias próximas ou com sinal ruidoso, pois uma leitura isolada pode ser atribuída ao traçado errado. Para reduzir esse problema, \citeonline{newson2009} propuseram um Map Matching probabilístico baseado em um Modelo Oculto de Markov (Hidden Markov Model, HMM). A ideia é considerar a sequência inteira de leituras, e não cada leitura isolada: o modelo combina a probabilidade de o GPS estar correto, ligada à distância entre a leitura e a via, e a probabilidade de o veículo ter se deslocado de forma plausível entre duas leituras consecutivas. A sequência de posições mais provável é obtida pelo algoritmo de Viterbi, o que faz o resultado acompanhar o traçado correto mesmo com ruído.
+
+Além do ruído, as trajetórias de GPS apresentam falhas de comunicação que geram lacunas (gaps) nos registros. Como as paradas são pontos discretos, é preciso estimar em que instante o veículo passou por cada uma, mesmo quando não há leitura exatamente sobre ela. Para isso, usam-se técnicas de interpolação temporal, que estimam o tempo de passagem a partir das leituras vizinhas \cite{borges2023}. Um cuidado importante é preservar a ordem temporal: métodos clássicos de interpolação por splines cúbicos podem gerar instantes fora de ordem. Por isso, adota-se a interpolação por PCHIP (Piecewise Cubic Hermite Interpolating Polynomial), que garante que o tempo estimado cresça de forma monotônica ao longo do trajeto \cite{fritsch1980}.
+
+Assim, o Map Matching responde ``em que ponto da linha o veículo estava'' e a interpolação responde ``em que instante ele passou por cada parada'', que são as duas informações necessárias para construir o log de eventos descrito no Capítulo 3.
+
+\section{Trabalhos Relacionados}\label{sec:trabalhosRelacionados}
+
+A literatura científica apresenta um conjunto consolidado de estudos que aplicam técnicas de computação e ciência de dados para aprimorar a gestão do transporte público. Esta seção revisa trabalhos fundamentais que oferecem suporte metodológico à pesquisa, organizados em três vertentes principais: a aplicação de algoritmos de Mineração de Processos para descoberta e conformidade; o desenvolvimento de métodos de tratamento de dados espaciais, como Map Matching e interpolação temporal, essenciais para lidar com a imprecisão de sensores de GPS; e, especificamente, investigações prévias realizadas no cenário da Rede Integrada de Transporte (RIT) de Curitiba, que evidenciam os desafios de integração de dados enfrentados pela URBS.
+
+\subsection{Aplicações de Mineração de Processos no Transporte}\label{subsec:mpTransporte}
+
+A Mineração de Processos tem sido aplicada à mobilidade urbana para descobrir modelos de comportamento a partir de registros de operação. \citeonline{delgado2023} usam dados abertos do sistema de transporte de Montevidéu, no Uruguai, para descobrir o modelo das linhas de ônibus e das viagens dos usuários, e discutem limitações dos dados abertos para a construção de logs de eventos. \citeonline{tavares2021} propõe uma metodologia que transforma dados de geolocalização de ônibus em um log de eventos e aplica a Mineração de Processos para descobrir gargalos operacionais. Os dois trabalhos confirmam que a operação de ônibus pode ser tratada como um processo, mas não realizam verificação de conformidade com o itinerário planejado.
+
+\subsection{Análise Operacional de Frotas de Ônibus}\label{subsec:frotas}
+
+Estudos exploratórios em Curitiba, como o de \citeonline{kozievitch2016}, tratam da descoberta de padrões e da integração entre tabelas estáticas e registros dinâmicos de GPS, o que mostra a complexidade de reunir múltiplas fontes de dados do transporte público. \citeonline{cesar2024} desenvolveram o Dashboard URBS, um sistema de monitoramento do transporte público de Curitiba baseado em dados abertos. Fora de Curitiba, \citeonline{cristobal2018} usam posições de GPS e registros de embarque para obter os tempos de parada e de deslocamento entre paradas consecutivas, com foco na previsão do tempo de viagem.
+
+\subsection{Comparativo dos Trabalhos Correlatos}\label{subsec:comparativo}
+
+O \autoref{quad:comparativo} compara os trabalhos discutidos nesta seção.
+
+\begin{tabframed}[htb]
+\caption{Comparação dos trabalhos correlatos}
+\label{quad:comparativo}
+\begin{tabular}{|p{2.2cm}|p{3.7cm}|p{3.7cm}|p{3.7cm}|}
+\hline
+\textbf{Trabalho} & \textbf{Dados} & \textbf{Objetivo} & \textbf{Limitação} \\ \hline
+Kozievitch et al. (2016) & Dados abertos de Curitiba & Análise exploratória e integração de dados & Não gera log de eventos \\ \hline
+Martins et al. (2022) & GPS em streaming & Map Matching para estimar o horário de passagem & Não constrói log de eventos para mineração \\ \hline
+Borges et al. (2023) & GPS de ônibus & Detecção de itinerário com interpolação temporal & Não faz descoberta nem conformidade \\ \hline
+Tavares (2021) & Geolocalização de ônibus & Detecção de operações e descoberta de processos & Usa eventos de parada fornecidos pela operadora; conformidade só na logística \\ \hline
+Delgado e Calegari (2023) & Dados abertos de Montevidéu & Descoberta de processos das linhas e das viagens & Não verifica conformidade nem faz auditoria \\ \hline
+Este trabalho & GPS bruto e cadastro oficial da URBS & Reconstrução, descoberta, conformidade e plataforma de auditoria & Escopo restrito às linhas analisadas \\ \hline
+\end{tabular}
+\fonte{}
+\end{tabframed}
+
+Os trabalhos correlatos tratam partes do problema, mas nenhum reúne a reconstrução a partir de GPS bruto, a verificação de conformidade com o itinerário planejado e uma plataforma de auditoria. Essas três etapas, em conjunto, são a contribuição deste trabalho.
+
+\section{Síntese do Capítulo}\label{sec:sinteseCap2}
+
+Este capítulo apresentou a base teórica que sustenta a metodologia do trabalho. A Mineração de Processos fornece as técnicas analíticas de descoberta e conformidade, enquanto o PM4Py viabiliza a implementação computacional. No domínio do transporte, o tratamento dos dados por Map Matching e interpolação é fundamental para mitigar as falhas descritas na literatura e construir um log de eventos confiável. O próximo capítulo descreve a metodologia e a engenharia de dados usadas para gerar esse log a partir dos dados de GPS da URBS.

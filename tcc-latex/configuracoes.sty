@@ -1,0 +1,263 @@
+%% Pacotes carregados nas classes:
+%%   memoir: abstract, appendix, array, booktabs, ccaption, chngcntr, chngpage, dcolumn, delarray, enumerate, epigraph, framed,
+%%           ifmtarg, ifpdf, index, makeidx, moreverb, needspace, newﬁle, nextpage, parskip, patchcmd, setspace, shortvrb, showidx,
+%%           tabularx, titleref, titling, tocbibind, tocloft, verbatim, verse.
+%%   memoir (similares): crop, fancyhdr, geometry, sidecap, subﬁgure, titlesec.
+%%   abntex2: babel, bookmark, calc, enumitem, ifthen, hyperref, textcase.
+%%   utfprpgtex: abntex2cite, ae, algorithmic, amsmath, backref, breakurl, caption, cmap, color, eepic, epic, epsfig, etoolbox,
+%%               fancyhdr, fix-cm, fontenc, glossaries, graphics, graphicx, helvet, hyphenat, indentfirst, inputenc, lastpage,
+%%               morewrites, nomencl, sfmath, sistyle, substr, times, xtab.
+
+
+%% Pacotes adicionais (\usepackage[options]{package})
+\usepackage{bigdelim, booktabs, colortbl, longtable, multirow}%% Ferramentas para tabelas
+\usepackage{amssymb, amstext, amsthm, icomma}%% Ferramentas para linguagem matemática
+\usepackage{pifont, textcomp, wasysym}%% Símbolos de texto
+\usepackage{lipsum}				% para geração de dummy text
+\usepackage{subfig}             % para adicionar figuras lado a lado no texto                    
+\usepackage{pdfpages}           % para adicionar documentos pdf ao trabalho
+\usepackage{xspace}
+
+
+% luiz: primeira letra maiúscula
+% solução 1
+%\usepackage{stringstrings}
+%\newcommand{\firstcap}[1]{\caselower[e]{#1}\capitalize{\thestring}}
+
+% solução 2 - não usei essa
+% \usepackage[utf8]{inputenc}
+% \usepackage{datatool-base}
+% \usepackage{mfirstuc}
+
+% Formatação do título da seção - primeira letra caixa alta e o resto em caixa baixa.
+% \usepackage[explicit]{titlesec}
+% \usepackage{lipsum}
+% \titleformat{\section}{\normalfont}{\thesection}{1em}{\textbf{\firstcap{#1}}} % funciona mas apenas para o título da seção e não para o sumário (a configuração do sumário está mais para baixo
+
+% luiz: define o underline colorido.
+% https://github.com/abntex/abntex2-contrib/blob/master/customizacoes/pucminas/abntex2-pucminas.sty
+% acabei não usando o black e o coloruline da solução do link
+
+\usepackage[normalem]{ulem} % para o underline colorido na seção quaternária
+\renewcommand*{\cftsubsubsectionfont}{\normalfont\uline} % underline no sumário
+\setsubsubsecheadstyle{\ABNTEXsubsubsectionfont\ABNTEXsubsubsectionfontsize\ABNTEXsubsubsectionupperifneeded\uline} %underline no título da subsubsection
+
+% luiz: bibliografia - opções
+
+%% Comandos personalizados (\newcommand{name}[num]{definition})
+\newcommand{\cpp}{\texttt{C$++$}}%% C++
+\newcommand{\latex}{\LaTeX\xspace}%% LaTeX
+\newcommand{\ds}{\displaystyle}%% Tamanho normal das equações
+\newcommand{\bsym}[1]{\boldsymbol{#1}}%% Texto no modo matemático em negrito
+\newcommand{\mr}[1]{\mathrm{#1}}%% Texto no modo matemático normal (não itálico)
+\newcommand{\der}{\mr{d}}%% Operador diferencial
+\newcommand{\deri}[2]{\frac{\der #1}{\der #2}}%% Derivada ordinária
+\newcommand{\derip}[2]{\frac{\partial #1}{\partial #2}}%% Derivada parcial
+\newcommand{\pare}[1]{\left( #1 \right)}%% Parênteses
+\newcommand{\colc}[1]{\left[ #1 \right]}%% Colchetes
+\newcommand{\chav}[1]{\left\lbrace #1 \right\rbrace}%% Chaves
+\newcommand{\sen}{\operatorname{sen}}%% Operador seno
+\newcommand{\senh}{\operatorname{senh}}%% Operador seno hiperbólico
+\newcommand{\tg}{\operatorname{tg}}%% Operador tangente
+\newcommand{\tgh}{\operatorname{tgh}}%% Operador tangente hiperbólico
+\newcommand{\seqref}[1]{Equação~\eqref{#1}}%% Referência de uma única equação
+\newcommand{\meqref}[1]{Equações~\eqref{#1}}%% Referência de múltiplas equações
+\newcommand{\citep}[1]{\cite{#1}}%% Atalho para citação implícita
+\newcommand{\citet}[1]{\citeonline{#1}}%% Atalho para citação explícita
+\newcommand{\citepa}[1]{(\citeauthor{#1})}%% Atalho para citação implícita (somente autor)
+\newcommand{\citeta}[1]{\citeauthoronline{#1}}%% Atalho para citação explícita (somente autor)
+\newcommand{\citepy}[1]{(\citeyear{#1})}%% Atalho para citação implícita (somente ano)
+\newcommand{\citety}[1]{\citeyear{#1}}%% Atalho para citação explícita (somente ano)
+
+\newcommand{\fonteTexto}[1]{\renewcommand{\familydefault}{#1}}
+
+% Define o caminho das figuras
+\graphicspath{{figuras/}}
+
+% Define a fonte ara helvet que é uma fonte similar à Arial, se for usar a Arial tem que mudar o compilador para XeLaTex, mas ai tem que arrumar os erros: https://latex.org/forum/viewtopic.php?t=25998
+%\usepackage{helvet}
+%\renewcommand{\familydefault}{\sfdefault}
+%\usepackage{times} % para fonte time new roman
+%\usepackage{pslatex} % ou essa aqui...
+
+%\usepackage{titlesec}
+
+%% Configuração de glossário
+% \usepackage[portuguese]{nomencl}
+% \usepackage[nogroupskip,nonumberlist,nopostdot,nohypertypes={acronym}]{glossaries}
+% \makenoidxglossaries
+\usepackage{glossaries}
+\makeglossaries
+
+% para siglas em português
+\newcommand{\siglaPt}[2]
+{
+ \newglossaryentry{#1}{
+  name=#1,
+  description={#2},
+  first={#2 (#1)},
+  long={#2}
+ }  
+}
+
+% para siglas de língua estrangeira, nessas a descrição longa fica em itálico.
+\newcommand{\siglaIt}[2]
+{
+ \newglossaryentry{#1}{
+  name=#1,
+  description={\textit{#2}},
+  first={\textit{#2} ({#1})},
+  long={\textit{#2}}
+ }  
+}
+
+%% luiz - para fazer os avisos
+\usepackage{tcolorbox}
+
+% use para criar caixas de avisos, pode ser utilizado para fazer anotações de tarefas indicadas pelo orientador/banca.
+% \caixa{Atenção}{texto...}
+\newcommand{\caixa}[2]{
+\begin{tcolorbox}[colback=red!5!white,colframe=red!45!white, title = #1, fonttitle=\bfseries]
+#2
+\end{tcolorbox}
+}
+
+% Luiz - Linhas órfãs e viúvas
+\widowpenalty=10000
+\clubpenalty=10000
+
+% Luiz - Caption do tamanho da Tabela
+%\usepackage[width=1\textwidth]{caption}
+
+% Luiz - configurar a margem dos itens
+\setlength{\leftmargini}{1.5cm}
+\setlength{\leftmarginii}{1.5cm}
+
+\newcommand{\ac}[1]{\gls{#1}}
+
+% Macro used for works in English
+% \newcommand\foreign[1]{\foreignlanguage{english}{\textit{#1}}}
+\newcommand\foreign[1]{\textit{#1}}
+\newcommand{\ew}[1]{\textit{\foreignlanguage{english}{#1}}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% References to floats
+%
+\RequirePackage[capitalise]{cleveref}
+\crefalias{sourcecode}{listing}
+\@ifpackageloaded{cleveref}{
+	\crefname{chapter}{Chapter}{Chapters}
+	\Crefname{chapter}{Chapter}{Chapters}
+	\crefname{section}{Section}{Sections}
+	\Crefname{section}{Section}{Sections}
+	\crefname{line}{Line}{Lines}
+	\Crefname{line}{Line}{Lines}
+	\crefname{table}{Table}{Tables}
+	\Crefname{table}{Table}{Tables}
+	\crefname{figure}{Figure}{Figures}
+	\Crefname{figure}{Figure}{Figures}
+	\crefname{subfigure}{Figure}{Figures}
+	\Crefname{subfigure}{Figure}{Figures}
+	\crefname{equation}{Equation}{Equations}
+	\Crefname{equation}{Equation}{Equations}
+	\crefname{lstlisting}{Listing}{Listings}
+	\Crefname{lstlisting}{Listing}{Listings}
+	\crefname{lstnumber}{Line}{Lines}
+	\Crefname{lstnumber}{Line}{Lines}
+	\crefname{appendix}{Appendix}{Appendices}
+	\Crefname{appendix}{Appendix}{Appendices}
+	\crefrangelabelformat{chapter}{#3#1#4~to~#5#2#6}
+	\crefrangelabelformat{section}{#3#1#4~to~#5#2#6}
+	\iflanguage{brazil}{%
+		\crefname{chapter}{Cap\'itulo}{Cap\'itulos}
+		\Crefname{chapter}{Cap\'itulo}{Cap\'itulos}
+		\crefname{section}{Se\c{c}\~ao}{Se\c{c}\~oes}
+		\Crefname{section}{Se\c{c}\~ao}{Se\c{c}\~oes}
+		\crefname{line}{Linha}{Linhas}
+		\Crefname{line}{Linha}{Linhas}
+		\crefname{table}{Tabela}{Tabelas}
+		\Crefname{table}{Tabela}{Tabelas}
+		\crefname{figure}{Figura}{Figuras}
+		\crefname{figure}{Figura}{Figuras}
+		\Crefname{figure}{Figura}{Figuras}
+		\crefname{subfigure}{Figura}{Figuras}
+		\Crefname{subfigure}{Figura}{Figuras}
+		\crefname{equation}{Equa\c{c}\~ao}{Equa\c{c}\~oes}
+		\Crefname{equation}{Equa\c{c}\~ao}{Equa\c{c}\~oes}
+		\crefname{listing}{C\'odigo-fonte}{C\'odigos-fonte}
+		\Crefname{listing}{C\'odigo-fonte}{C\'odigos-fonte}
+		\crefname{lstlisting}{C\'odigo-fonte}{C\'odigos-fonte}
+		\Crefname{lstlisting}{C\'odigo-fonte}{C\'odigos-fonte}
+		\crefname{lstnumber}{Linha}{Linhas}
+		\Crefname{lstnumber}{Linha}{Linhas}
+		\crefname{appendix}{Ap\^endice}{Ap\^endices}
+		\Crefname{appendix}{Ap\^endice}{Ap\^endices}
+		\crefrangelabelformat{chapter}{#3#1#4~a~#5#2#6}
+		\crefrangelabelformat{section}{#3#1#4~a~#5#2#6}
+		
+		% The commands all take five arguments: the cross-reference type, the format
+		% for the first cross-reference in a list, the format for the second
+		% cross-reference in a list of two, the format for the middle cross-references
+		% in a list of more than two, and the format for the last cross-reference in
+		% a list of more than two.
+		\newcommand{\crefrangeconjunction}{ à }
+		\newcommand{\crefpairconjunction}{ e }
+		\newcommand{\crefmiddleconjunction}{, }
+		\newcommand{\creflastconjunction}{ e }
+		\crefmultiformat{ type }{ first }{ second }{ middle }{ last }
+		\Crefmultiformat{ type }{ first }{ second }{ middle }{ last }
+		\crefrangemultiformat{ type }{ first }{ second }{ middle }{ last }
+		\Crefrangemultiformat{ type }{ first }{ second }{ middle }{ last }
+	}{}
+}
+{}
+
+% CSV language for listings
+\lstdefinelanguage{csv}{
+    basicstyle=\normalfont\scriptsize,
+    numbers=left,
+    numberstyle=\scriptsize,
+    numbersep=8pt,
+    breaklines,
+    frame=lines,
+    literate=
+        {;}{{;\allowbreak}}1
+        {,}{{,\allowbreak}}1
+}
+
+% JSON style, as defined at https://tex.stackexchange.com/a/433961
+%
+\usepackage{xcolor}
+
+\definecolor{eclipseStrings}{RGB}{42,0.0,255}
+\definecolor{eclipseKeywords}{RGB}{127,0,85}
+\colorlet{numb}{magenta!60!black}
+
+\lstdefinelanguage{json}{
+    basicstyle=\normalfont\ttfamily\scriptsize,
+    commentstyle=\color{eclipseStrings}, % style of comment
+    stringstyle=\color{eclipseKeywords}, % style of strings
+    numbers=left,
+    numberstyle=\scriptsize,
+    stepnumber=1,
+    numbersep=8pt,
+    showstringspaces=false,
+    breaklines=true,
+    frame=lines,
+    string=[s]{"}{"},
+    comment=[l]{:\ "},
+    morecomment=[l]{:"},
+    literate=
+        *{0}{{{\color{numb}0}}}{1}
+         {1}{{{\color{numb}1}}}{1}
+         {2}{{{\color{numb}2}}}{1}
+         {3}{{{\color{numb}3}}}{1}
+         {4}{{{\color{numb}4}}}{1}
+         {5}{{{\color{numb}5}}}{1}
+         {6}{{{\color{numb}6}}}{1}
+         {7}{{{\color{numb}7}}}{1}
+         {8}{{{\color{numb}8}}}{1}
+         {9}{{{\color{numb}9}}}{1}
+}
+
+\usepackage{csquotes}

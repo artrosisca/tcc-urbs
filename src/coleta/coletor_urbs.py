@@ -13,7 +13,7 @@ PARAMS = {'c': API_CODE}
 
 # --- Configurações do Coletor ---
 INTERVALO_SEGUNDOS = 20  # 2 minutos
-PASTA_PRINCIPAL_DADOS = "dados_em_tempo_real"
+PASTA_PRINCIPAL_DADOS = "data/dados_em_tempo_real_2026"
 
 def fetch_vehicle_data():
     try:

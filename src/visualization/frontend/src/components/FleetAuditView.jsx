@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import InfoPopover from './InfoPopover';
 
 export default function FleetAuditView({ auditData, loading, setFilters, setActiveTab }) {
@@ -53,6 +53,11 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
             Auditoria Operacional Diária — CCO URBS
             <InfoPopover title="Auditoria Operacional Diária">
               Painel executivo de encerramento do dia para fiscalização de itinerário, pontualidade e paradas omitidas.
+            </InfoPopover>
+            <InfoPopover title="Diretrizes de Fiscalização para o CCO">
+              Com base na mineração de processos da amostragem diária, os fiscais da URBS podem verificar diretamente as
+              viagens identificadas com anomalias de itinerário e omissão de pontos de parada. Ao selecionar "Inspecionar"
+              em qualquer linha, o painel abre os detalhes de conformidade e o replay geográfico das viagens afetadas.
             </InfoPopover>
           </h2>
         </div>
@@ -237,21 +242,6 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* CCO Recommendations Banner */}
-      <div className="bg-slate-900 text-white rounded-xl p-5 shadow-sm space-y-3">
-        <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-blue-400" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-            Diretrizes de Fiscalização para o CCO
-          </h3>
-        </div>
-        <p className="text-xs text-slate-300 leading-relaxed">
-          Com base na mineração de processos da amostragem diária, os fiscais da URBS podem verificar diretamente as
-          viagens identificadas com anomalias de itinerário e omissão de pontos de parada. Ao selecionar "Inspecionar" em qualquer
-          linha, o painel abre os detalhes de conformidade e o replay geográfico das viagens afetadas.
-        </p>
       </div>
     </div>
   );

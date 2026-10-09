@@ -8,15 +8,15 @@ import FleetAuditView from './components/FleetAuditView';
 import MiningConsole from './components/MiningConsole';
 import { Layers, GitCommit, ShieldAlert, BarChart3, ClipboardCheck, ArrowLeft } from 'lucide-react';
 
-const STORAGE_FILTERS_KEY = 'urbs_pm_filters';
+const STORAGE_FILTERS_KEY = 'urbs_pm_filters_v2';
 const STORAGE_TAB_KEY = 'urbs_pm_active_tab';
 
 const DEFAULT_FILTERS = {
   regime: 'Regime B (20s)',
   line: '541',
   direction: 'VOLTA',
-  startDate: '2025-12-02',
-  endDate: '2025-12-08'
+  startDate: '2026-10-03',
+  endDate: '2026-10-09'
 };
 
 function getSavedFilters() {
@@ -186,6 +186,7 @@ export default function App() {
         setFilters={setFilters}
         onRunMining={handleRunMining}
         isProcessing={isProcessing}
+        miningStatus={miningStatus}
         activeTab={activeTab}
       />
 

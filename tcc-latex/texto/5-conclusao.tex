@@ -1,11 +1,43 @@
 % Capítulo 5 - Considerações Finais
-% OBS: conteúdo a ser escrito/realinhado a partir de docs/tcc/capitulo-5-conclusao.md
 
 \chapter{Considerações Finais}\label{cap:conclusao}
 
-Conteúdo em elaboração.
+Este capítulo retoma os objetivos do trabalho, apresenta as conclusões e as contribuições, discute as dificuldades e limitações encontradas e aponta propostas para trabalhos futuros.
 
 \section{Conclusões do Trabalho}\label{sec:conclusoes}
+
+O objetivo deste trabalho era transformar os registros brutos de GPS da frota de ônibus da URBS em um log de eventos confiável, para aplicar técnicas de Mineração de Processos e analisar a operação real do transporte público. O objetivo foi alcançado. O pipeline desenvolvido limpa a telemetria, associa as leituras ao traçado da linha com um modelo oculto de Markov, estima os horários de passagem por interpolação PCHIP e gera um log no padrão XES, pronto para a mineração.
+
+Os resultados do Capítulo 4 confirmam que a operação das linhas pode ser tratada como um processo. A partir do log gerado, foi possível descobrir o modelo real de execução das linhas, medir a conformidade com o itinerário planejado e identificar os trechos mais lentos, tudo disponibilizado em uma plataforma web de auditoria.
+
+A comparação entre os dois intervalos de coleta mostrou que a cadência de amostragem influencia de forma clara e consistente a qualidade da reconstrução. Nas três linhas analisadas, de tipos diferentes, o fitness médio subiu com a redução do intervalo de 2 minutos para 20 segundos, e a proporção de eventos interpolados caiu pela metade. Isso mostra que os dados coletados em alta frequência permitem análises de processo confiáveis, enquanto a cadência de 2 minutos produz um log incompleto.
+
+Um achado importante foi que o fitness não chegou a 1,0 em nenhum regime. A causa é a omissão das paradas das extremidades da rota, que ocorre em cerca de 90\% a 100\% das viagens nos dois regimes. Como essa omissão não depende da cadência e é explicada pelo afastamento do ônibus em relação ao traçado ao entrar no terminal, ela representa um comportamento real da operação, e não uma falha da reconstrução. Esse resultado mostra que a conformidade consegue separar as omissões esperadas, na entrada dos terminais, das eventuais infrações reais.
+
 \section{Contribuições para a Gestão do Transporte}\label{sec:contribuicoes}
+
+Os resultados vão além do meio acadêmico e oferecem aplicações diretas para a gestão do transporte público de Curitiba:
+
+\begin{itemize}
+  \item \textbf{Fiscalização automatizada do itinerário:} o módulo de Auditoria Diária permite ao Centro de Controle Operacional (CCO) identificar, a partir dos dados reais, quais veículos e linhas deixaram de atender às paradas previstas, substituindo conferências manuais por uma auditoria baseada em dados;
+  \item \textbf{Identificação de gargalos:} a análise de desempenho apontou os trechos mais lentos, como a aproximação ao Terminal Sítio Cercado, o que fornece subsídio para priorizar intervenções de tráfego;
+  \item \textbf{Métricas objetivas para o contrato:} os índices de conformidade e de pontualidade por linha e por tabela horária criam uma base imparcial para a aferição de metas e para a remuneração das empresas concessionárias.
+\end{itemize}
+
 \section{Dificuldades e Limitações Encontradas}\label{sec:limitacoes}
+
+\begin{enumerate}
+  \item \textbf{Ausência de sensores de embarque:} o pipeline usa apenas a telemetria GPS. Como não há sensores de abertura de portas ou catracas, a passagem pelo ponto indica presença no local, mas não mede o tempo real de embarque;
+  \item \textbf{Coletas em períodos diferentes:} as duas campanhas foram realizadas em outubro de 2025 e outubro de 2026. Como a frota e a demanda mudam de um ano para o outro, a comparação entre os regimes não é perfeitamente controlada, ainda que as três linhas, a metodologia e a época do ano tenham sido as mesmas;
+  \item \textbf{Dependência da qualidade do sinal GPS:} falhas de comunicação e imprecisão do receptor exigem limiares de tolerância (a geocerca de 150 metros e o filtro de 500 metros no traçado), que podem precisar de recalibração caso a tecnologia embarcada seja modernizada.
+\end{enumerate}
+
 \section{Propostas de Trabalhos Futuros}\label{sec:trabalhosFuturos}
+
+\begin{enumerate}
+  \item \textbf{Integração com a bilhetagem eletrônica:} cruzar o log de passagens com os registros de cartões de transporte permitiria analisar a jornada do usuário e a lotação dos veículos;
+  \item \textbf{Ajuste de rota sobre a malha viária completa:} aplicar o map-matching sobre o grafo do OpenStreetMap permitiria reconstruir o percurso real quando o ônibus desvia da rota oficial cadastrada;
+  \item \textbf{Varredura de parâmetros:} testar diferentes valores dos hiperparâmetros do Viterbi e do raio da geocerca, para medir a estabilidade dos gargalos identificados;
+  \item \textbf{Modelos preditivos de atraso:} usar os logs gerados para prever atrasos com técnicas de aprendizado de máquina;
+  \item \textbf{Piloto no CCO da URBS:} levar a plataforma para operação em escala real, validando-a com os fiscais do transporte.
+\end{enumerate}

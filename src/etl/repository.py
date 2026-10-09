@@ -309,7 +309,7 @@ class FilesystemTelemetryAdapter(TelemetryStorageAdapter):
                         line_code, start_date_str, _ = match.groups()
                         if regime == "A" and start_date_str == "2025-10-24":
                             processed_lines.add(line_code)
-                        elif regime == "B" and start_date_str == "2025-12-02":
+                        elif regime == "B" and start_date_str == "2026-10-03":
                             processed_lines.add(line_code)
                         elif regime not in ["A", "B"]:
                             processed_lines.add(line_code)
@@ -334,10 +334,10 @@ class FilesystemTelemetryAdapter(TelemetryStorageAdapter):
         if regime == "A":
             return sorted(list(extract_lines_from_dir(os.path.join(self.realtime_dir, '2025-10-24'))))
         elif regime == "B":
-            return sorted(list(extract_lines_from_dir(os.path.join(self.realtime_dir, '2025-12-02'))))
+            return sorted(list(extract_lines_from_dir(os.path.join(self.realtime_dir, '2026-10-03'))))
         else:
             lines_a = extract_lines_from_dir(os.path.join(self.realtime_dir, '2025-10-24'))
-            lines_b = extract_lines_from_dir(os.path.join(self.realtime_dir, '2025-12-02'))
+            lines_b = extract_lines_from_dir(os.path.join(self.realtime_dir, '2026-10-03'))
             return sorted(list(lines_a.intersection(lines_b)))
 
     def list_raw_lines(self, regime: Optional[str] = None) -> List[str]:
@@ -359,7 +359,7 @@ class FilesystemTelemetryAdapter(TelemetryStorageAdapter):
             return {l.strip() for l in lines if l and l != 'REC' and not l.startswith('X') and len(l) <= 4}
 
         day_a = os.path.join(self.realtime_dir, '2025-10-24')
-        day_b = os.path.join(self.realtime_dir, '2025-12-02') # This folder does not exist locally
+        day_b = os.path.join(self.realtime_dir, '2026-10-03')
         if regime == "A":
             res = sorted(list(extract_lines_from_dir(day_a)))
         elif regime == "B":

@@ -7,6 +7,7 @@ export default function SidebarFilters({
   setFilters,
   onRunMining,
   isProcessing,
+  miningStatus = 'idle',
   activeTab = 'audit'
 }) {
   const [minedLines, setMinedLines] = useState([]);
@@ -31,15 +32,15 @@ export default function SidebarFilters({
     },
     'Regime B (20s)': {
       regimeParam: 'B',
-      week: { label: 'Semana Completa (02 a 08/12/2025)', start: '2025-12-02', end: '2025-12-08' },
+      week: { label: 'Semana Completa (03 a 09/10/2026)', start: '2026-10-03', end: '2026-10-09' },
       days: [
-        { label: '02/12/2025 (Ter)', start: '2025-12-02', end: '2025-12-02' },
-        { label: '03/12/2025 (Qua)', start: '2025-12-03', end: '2025-12-03' },
-        { label: '04/12/2025 (Qui)', start: '2025-12-04', end: '2025-12-04' },
-        { label: '05/12/2025 (Sex)', start: '2025-12-05', end: '2025-12-05' },
-        { label: '06/12/2025 (Sáb)', start: '2025-12-06', end: '2025-12-06' },
-        { label: '07/12/2025 (Dom)', start: '2025-12-07', end: '2025-12-07' },
-        { label: '08/12/2025 (Seg)', start: '2025-12-08', end: '2025-12-08' }
+        { label: '03/10/2026 (Sáb)', start: '2026-10-03', end: '2026-10-03' },
+        { label: '04/10/2026 (Dom)', start: '2026-10-04', end: '2026-10-04' },
+        { label: '05/10/2026 (Seg)', start: '2026-10-05', end: '2026-10-05' },
+        { label: '06/10/2026 (Ter)', start: '2026-10-06', end: '2026-10-06' },
+        { label: '07/10/2026 (Qua)', start: '2026-10-07', end: '2026-10-07' },
+        { label: '08/10/2026 (Qui)', start: '2026-10-08', end: '2026-10-08' },
+        { label: '09/10/2026 (Sex)', start: '2026-10-09', end: '2026-10-09' }
       ]
     }
   };
@@ -50,6 +51,7 @@ export default function SidebarFilters({
   const currentRegime = regimeConfig[currentRegimeKey];
 
   useEffect(() => {
+    if (miningStatus === 'running') return;
     const fetchLines = async () => {
       try {
         const regimeParam = currentRegimeKey.includes('20s') ? 'B' : 'A';
@@ -70,10 +72,11 @@ export default function SidebarFilters({
       }
     };
     fetchLines();
-  }, [currentRegimeKey]);
+  }, [currentRegimeKey, miningStatus]);
 
   // Check available trips status
   useEffect(() => {
+    if (miningStatus === 'running') return;
     let isMounted = true;
     setTripStatus(null);
     const checkStatus = async () => {
@@ -95,7 +98,7 @@ export default function SidebarFilters({
     return () => {
       isMounted = false;
     };
-  }, [filters.line, filters.startDate, filters.endDate]);
+  }, [filters.line, filters.startDate, filters.endDate, miningStatus]);
 
   // Circular lines detection from available directions
   const availableDirs = tripStatus?.available_directions || [];

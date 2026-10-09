@@ -34,19 +34,19 @@ Para a implementação das técnicas de mineração, utiliza-se a biblioteca PM4
 
 \section{Análise de Dados em Transporte Público}\label{sec:analiseTransporte}
 
-A análise eficaz de sistemas de transporte público depende da capacidade de converter grandes volumes de dados brutos em informações estruturadas. A simples coleta de coordenadas geográficas não é suficiente para a aplicação de técnicas avançadas de análise; é necessário um tratamento rigoroso para contextualizar esses dados. Conforme ressaltam \citeonline{borges2023}, um processo robusto de limpeza e preparação da base de dados é indispensável para recuperar o volume de dados válidos e evitar descartes desnecessários causados por inconsistências nas trajetórias.
+A análise de sistemas de transporte público depende de converter grandes volumes de dados brutos em informações estruturadas. A coleta de coordenadas geográficas, sozinha, não basta para aplicar técnicas de análise; é preciso contextualizar esses dados. Conforme ressaltam \citeonline{borges2023}, a limpeza e a preparação da base de dados são necessárias para recuperar dados válidos e evitar descartes desnecessários causados por inconsistências nas trajetórias.
 
 Esta seção explora os conceitos fundamentais e as técnicas computacionais necessárias para transformar dados espaciais contínuos em eventos discretos de processo.
 
 \subsection{Dados de GPS e Mobilidade Urbana}\label{subsec:gpsMobilidade}
 
-O uso de dados de GPS permite rastrear a posição dos veículos em tempo real, sendo fundamental para a gestão da mobilidade urbana. No entanto, trabalhar com esses dados apresenta desafios técnicos. Na prática, essa tarefa pode ser difícil porque os veículos falham na comunicação do GPS, gerando gaps que podem afetar os resultados das análises \cite{borges2023}.
+O uso de dados de GPS permite rastrear a posição dos veículos em tempo real, o que ajuda na gestão da mobilidade urbana. No entanto, trabalhar com esses dados apresenta desafios técnicos. Na prática, essa tarefa pode ser difícil porque os veículos falham na comunicação do GPS, gerando gaps que podem afetar os resultados das análises \cite{borges2023}.
 
 Além disso, a análise da movimentação com dados de GPS enfrenta problemas relacionados às imprecisões inerentes aos dispositivos GNSS, que podem posicionar o veículo fora da via correta ou dificultar a detecção exata da passagem por um ponto \cite{martins2022}.
 
 \subsection{APIs de Dados Abertos no Transporte Público}\label{subsec:apis}
 
-A disponibilização de dados através de APIs públicas é essencial para a transparência em cidades inteligentes. Em Curitiba, a base de dados da URBS \cite{urbs2024} é alimentada diariamente e mantém informações relacionadas aos dados operacionais dos ônibus, como itinerário e posição do ônibus no tempo. O acesso a esses dados dinâmicos permite a reconstrução das trajetórias para análise de desempenho e conformidade.
+A disponibilização de dados por meio de APIs públicas contribui para a transparência em cidades inteligentes. Em Curitiba, a base de dados da URBS \cite{urbs2024} é alimentada diariamente e mantém informações relacionadas aos dados operacionais dos ônibus, como itinerário e posição do ônibus no tempo. O acesso a esses dados dinâmicos permite a reconstrução das trajetórias para análise de desempenho e conformidade.
 
 \subsection{Ajuste de Rotas (Map-Matching) e Interpolação de Trajetórias}\label{subsec:mapmatching}
 
@@ -60,7 +60,7 @@ Assim, o Map Matching responde ``em que ponto da linha o veículo estava'' e a i
 
 \section{Trabalhos Relacionados}\label{sec:trabalhosRelacionados}
 
-A literatura científica apresenta um conjunto consolidado de estudos que aplicam técnicas de computação e ciência de dados para aprimorar a gestão do transporte público. Esta seção revisa trabalhos fundamentais que oferecem suporte metodológico à pesquisa, organizados em três vertentes principais: a aplicação de algoritmos de Mineração de Processos para descoberta e conformidade; o desenvolvimento de métodos de tratamento de dados espaciais, como Map Matching e interpolação temporal, essenciais para lidar com a imprecisão de sensores de GPS; e, especificamente, investigações prévias realizadas no cenário da Rede Integrada de Transporte (RIT) de Curitiba, que evidenciam os desafios de integração de dados enfrentados pela URBS.
+A literatura científica apresenta um conjunto consolidado de estudos que aplicam técnicas de computação e ciência de dados para aprimorar a gestão do transporte público. Esta seção revisa trabalhos representativos que dão suporte metodológico à pesquisa, organizados em três vertentes principais: a aplicação de algoritmos de Mineração de Processos para descoberta e conformidade; o desenvolvimento de métodos de tratamento de dados espaciais, como Map Matching e interpolação temporal, que ajudam a lidar com a imprecisão de sensores de GPS; e, especificamente, investigações prévias realizadas no cenário da Rede Integrada de Transporte (RIT) de Curitiba, que evidenciam os desafios de integração de dados enfrentados pela URBS.
 
 \subsection{Aplicações de Mineração de Processos no Transporte}\label{subsec:mpTransporte}
 
@@ -94,4 +94,4 @@ Os trabalhos correlatos tratam partes do problema, mas nenhum reúne a reconstru
 
 \section{Síntese do Capítulo}\label{sec:sinteseCap2}
 
-Este capítulo apresentou a base teórica que sustenta a metodologia do trabalho. A Mineração de Processos fornece as técnicas analíticas de descoberta e conformidade, enquanto o PM4Py viabiliza a implementação computacional. No domínio do transporte, o tratamento dos dados por Map Matching e interpolação é fundamental para mitigar as falhas descritas na literatura e construir um log de eventos confiável. O próximo capítulo descreve a metodologia e a engenharia de dados usadas para gerar esse log a partir dos dados de GPS da URBS.
+Este capítulo apresentou a base teórica que sustenta a metodologia do trabalho. A Mineração de Processos fornece as técnicas analíticas de descoberta e conformidade, enquanto o PM4Py permite a implementação computacional. No domínio do transporte, o tratamento dos dados por Map Matching e interpolação ajuda a mitigar as falhas descritas na literatura e a construir um log de eventos confiável. O próximo capítulo descreve a metodologia e a engenharia de dados usadas para gerar esse log a partir dos dados de GPS da URBS.

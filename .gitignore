@@ -1,8 +1,24 @@
-data/dados_em_tempo_real_2026/
-data/dados_c3sl/
-data/dados_processados/
-data/static_cache/
-referencias/
+# Ambiente e artefatos de build
+.venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Dados (não versionar)
+data/
+dados_processados/
+referencias/
+
+# Contexto/agentes/estudo (uso local, fora do git)
+.agents/
+AGENTS.md
+CONTEXT.md
+docs/
+scratch/
+notebooks/
+
+# Texto e artefatos do TCC (fonte está no Overleaf)
+tcc-latex/
+TCC_DEFINITIVO.pdf
+TCC_DEFINITIVO_HTML/
+test_tile.png

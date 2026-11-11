@@ -1,5 +1,4 @@
 import React from 'react';
-import { ShieldAlert, CheckCircle, Percent, Activity, Compass } from 'lucide-react';
 import InfoPopover from './InfoPopover';
 
 // "2026-10-09 07:42" -> "09/10 07:42"
@@ -53,9 +52,6 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
       {/* KPI Cards Grid */}
       <div className={`grid grid-cols-5 gap-4 transition-opacity duration-200 ${isLoading ? 'opacity-40 pointer-events-none' : ''}`}>
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
-            <Percent className="h-5 w-5" />
-          </div>
           <div>
             <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Fitness Médio
@@ -70,9 +66,6 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
-            <CheckCircle className="h-5 w-5" />
-          </div>
           <div>
             <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Viagens Conformantes
@@ -87,9 +80,6 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center">
-            <Activity className="h-5 w-5" />
-          </div>
           <div>
             <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Total de Casos
@@ -104,9 +94,6 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
-            <ShieldAlert className="h-5 w-5" />
-          </div>
           <div>
             <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Paradas Omitidas
@@ -125,9 +112,6 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
-            <Compass className="h-5 w-5" />
-          </div>
           <div>
             <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Incerteza GPS (Interpoladas)

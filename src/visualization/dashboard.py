@@ -21,6 +21,13 @@ from src.etl.trajectory import TrajectoryReconstructor
 from src.etl.repository import default_telemetry_repo, FilesystemTelemetryAdapter, _fix_encoding
 from src.mining.engine import ProcessMiningEngine
 
+# Nome de exibição das linhas (fonte única para todas as telas)
+LINE_NAMES = {
+    "010": "Interbairros I (Circular)",
+    "541": "Bairro Novo A (Troncal)",
+    "542": "Bairro Novo B (Alimentador)"
+}
+
 app = FastAPI(title="Process Mining URBS — CCO API")
 
 @app.middleware("http")
@@ -338,6 +345,7 @@ def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VO
             },
             "metadata": {
                 "line": line,
+                "line_name": LINE_NAMES.get(line, f"Linha {line}"),
                 "direction": chosen_dir,
                 "start_date": start_date,
                 "end_date": end_date,
@@ -507,11 +515,7 @@ def get_fleet_audit(regime: str = "B", start_date: str = None, end_date: str = N
     lines = default_telemetry_repo.list_available_lines(regime=regime)
 
     fleet_lines = []
-    line_names = {
-        "010": "Interbairros I (Circular)",
-        "541": "Bairro Novo A (Troncal)",
-        "542": "Bairro Novo B (Alimentador)"
-    }
+    line_names = LINE_NAMES
     
     for l in lines:
         import glob

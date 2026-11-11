@@ -8,6 +8,15 @@ import FleetAuditView from './components/FleetAuditView';
 import MiningConsole from './components/MiningConsole';
 import { Layers, GitCommit, ShieldAlert, BarChart3, ClipboardCheck, ArrowLeft } from 'lucide-react';
 
+// Ordem das abas = ordem de apresentação no TCC
+const TABS = [
+  { id: 'audit', label: 'Auditoria Diária (CCO)', Icon: ClipboardCheck },
+  { id: 'conformance', label: 'Conformidade Normativa', Icon: ShieldAlert },
+  { id: 'petri', label: 'Rede de Petri (Descoberta)', Icon: GitCommit },
+  { id: 'performance', label: 'Gargalos Operacionais (DFG)', Icon: BarChart3 },
+  { id: 'map', label: 'Mapa de Replay', Icon: Layers },
+];
+
 const STORAGE_FILTERS_KEY = 'urbs_pm_filters_v2';
 const STORAGE_TAB_KEY = 'urbs_pm_active_tab';
 
@@ -33,7 +42,7 @@ function getSavedFilters() {
 function getSavedTab() {
   try {
     const raw = localStorage.getItem(STORAGE_TAB_KEY);
-    if (raw && ['audit', 'conformance', 'performance', 'map', 'petri'].includes(raw)) {
+    if (raw && TABS.some(t => t.id === raw)) {
       return raw;
     }
   } catch {}
@@ -197,75 +206,22 @@ export default function App() {
           {/* Row 1: Funnel Navigation Tabs (1 -> 2 -> 3 -> 4 -> 5) */}
           <div className="h-12 px-6 flex items-center justify-between">
             <div className="flex items-center gap-1">
-              <button
-                id="tab-audit"
-                type="button"
-                onClick={() => setActiveTab('audit')}
-                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                  activeTab === 'audit'
-                    ? 'bg-slate-100 text-slate-800 font-bold'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <ClipboardCheck className="h-3.5 w-3.5" />
-                <span>1. Auditoria Diária (CCO)</span>
-              </button>
-
-              <button
-                id="tab-conformance"
-                type="button"
-                onClick={() => setActiveTab('conformance')}
-                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                  activeTab === 'conformance'
-                    ? 'bg-slate-100 text-slate-800 font-bold'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <ShieldAlert className="h-3.5 w-3.5" />
-                <span>2. Conformidade Normativa</span>
-              </button>
-
-              <button
-                id="tab-performance"
-                type="button"
-                onClick={() => setActiveTab('performance')}
-                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                  activeTab === 'performance'
-                    ? 'bg-slate-100 text-slate-800 font-bold'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <BarChart3 className="h-3.5 w-3.5" />
-                <span>3. Gargalos Operacionais (DFG)</span>
-              </button>
-
-              <button
-                id="tab-map"
-                type="button"
-                onClick={() => setActiveTab('map')}
-                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                  activeTab === 'map'
-                    ? 'bg-slate-100 text-slate-800 font-bold'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <Layers className="h-3.5 w-3.5" />
-                <span>4. Mapa de Replay</span>
-              </button>
-
-              <button
-                id="tab-petri"
-                type="button"
-                onClick={() => setActiveTab('petri')}
-                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                  activeTab === 'petri'
-                    ? 'bg-slate-100 text-slate-800 font-bold'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <GitCommit className="h-3.5 w-3.5" />
-                <span>5. Descoberta de Processos</span>
-              </button>
+              {TABS.map(({ id, label, Icon }, i) => (
+                <button
+                  key={id}
+                  id={`tab-${id}`}
+                  type="button"
+                  onClick={() => setActiveTab(id)}
+                  className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
+                    activeTab === id
+                      ? 'bg-slate-100 text-slate-800 font-bold'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{i + 1}. {label}</span>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -349,7 +305,7 @@ export default function App() {
                     <div className="flex flex-col text-right">
                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Fitness</span>
                       <span className="font-extrabold text-slate-700">
-                        {conformanceData.avg_fitness ? conformanceData.avg_fitness.toFixed(3) : '0.000'}
+                        {conformanceData.avg_fitness ? conformanceData.avg_fitness.toFixed(2) : '0.00'}
                       </span>
                     </div>
                     <div className="flex flex-col text-right">
@@ -404,6 +360,7 @@ export default function App() {
               isLoading={isLoading}
               filters={filters}
               activeTripId={activeTripId}
+              activeTrip={conformanceData?.deviant_trips?.find(t => t.case_id === activeTripId) || null}
               onClearTrip={() => setActiveTripId(null)}
             />
           )}

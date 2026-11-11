@@ -6,14 +6,8 @@ import { PathLayer, ScatterplotLayer, IconLayer, BitmapLayer, TextLayer } from '
 import { TripsLayer } from '@deck.gl/geo-layers';
 import { X, Play, Pause, Compass, MapPin, Bus, Calendar, Activity, CheckCircle2, Clock, RotateCw } from 'lucide-react';
 
-const LINE_ARCHETYPES = {
-  '010': 'Interbairros I (Circular)',
-  '541': 'Bairro Novo A (Alimentador)',
-  '542': 'Bairro Novo B (Alimentador)',
-  '500': 'Ligeirinho Boqueirão',
-  '203': 'Santa Cândida / Capão Raso',
-  '303': 'Centenário / Campo Comprido'
-};
+const SPEEDS = [1, 5, 20];
+const BASE_STEP_SECS = 2; // segundos simulados por quadro em 1x
 
 function formatDisplayPeriod(startDate, endDate) {
   if (!startDate) return '';
@@ -28,7 +22,7 @@ function formatDisplayPeriod(startDate, endDate) {
   return `${toBr(startDate)} a ${toBr(endDate)}`;
 }
 
-export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogicalMode, isLoading, filters, activeTripId, onClearTrip }) {
+export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogicalMode, isLoading, filters, activeTripId, activeTrip, onClearTrip }) {
   const [viewState, setViewState] = useState({
     longitude: -49.2768, // Curitiba
     latitude: -25.4311,
@@ -44,6 +38,7 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
   const [time, setTime] = useState(0);
   const [maxTime, setMaxTime] = useState(86400);
   const [minTime, setMinTime] = useState(0); // 24h in seconds
+  const [speed, setSpeed] = useState(1);
   const animationRef = useRef(null);
 
   // Extract paths for TripsLayer
@@ -57,6 +52,9 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
   const activeDirection = meta?.direction || filters?.direction || 'VOLTA';
   const activeStartDate = meta?.start_date || filters?.startDate || '';
   const activeEndDate = meta?.end_date || filters?.endDate || '';
+  const activeLineName = meta?.line_name || null;
+  // Paradas omitidas da viagem aberta a partir da Conformidade
+  const omittedSeqs = new Set(activeTrip?.skipped_seqs || []);
   const displayRegime = meta?.regime || (filters?.regime?.includes('20s') || filters?.regime?.includes('B') ? 'B' : 'A');
 
   const isDirectionMismatch = Boolean(
@@ -183,7 +181,7 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
             setIsPlaying(false);
             return maxTime;
           }
-          return t + 2; // Speed multiplier (2 seconds per frame)
+          return t + BASE_STEP_SECS * speed;
         });
         animationRef.current = requestAnimationFrame(animate);
       };
@@ -195,7 +193,7 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [isPlaying, maxTime]);
+  }, [isPlaying, maxTime, speed]);
 
   const handleTimeSliderChange = (e) => {
     setTime(parseInt(e.target.value));
@@ -245,8 +243,9 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
       id: 'stops-points-layer',
       data: rawStops,
       getPosition: d => [d.lon, d.lat],
-      getRadius: 15,
-      getFillColor: [15, 23, 42, 225], // Dark slate
+      getRadius: d => (omittedSeqs.has(d.seq) ? 28 : 15),
+      getFillColor: d => (omittedSeqs.has(d.seq) ? [245, 158, 11, 255] : [15, 23, 42, 225]),
+      updateTriggers: { getRadius: activeTrip?.case_id, getFillColor: activeTrip?.case_id },
       getLineColor: [255, 255, 255, 255],
       getLineWidth: 2,
       lineWidthMinPixels: 1,
@@ -404,9 +403,9 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
             <span className="font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
               {activeDirection}
             </span>
-            {LINE_ARCHETYPES[activeLine] && (
-              <span className="text-slate-400 text-[10px] truncate max-w-[130px]" title={LINE_ARCHETYPES[activeLine]}>
-                {LINE_ARCHETYPES[activeLine]}
+            {activeLineName && (
+              <span className="text-slate-400 text-[10px] truncate max-w-[130px]" title={activeLineName}>
+                {activeLineName}
               </span>
             )}
           </div>
@@ -451,6 +450,12 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
             <span className="w-3.5 h-1.5 rounded-full bg-blue-500"></span>
             <span className="text-slate-600 font-medium">Ônibus (Log de Eventos)</span>
           </div>
+          {omittedSeqs.size > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-amber-500 border border-white"></span>
+              <span className="text-slate-600 font-medium">Parada omitida nesta viagem ({omittedSeqs.size})</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -487,6 +492,22 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
             onChange={handleTimeSliderChange}
             className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-slate-900 outline-none"
           />
+        </div>
+
+        {/* Replay speed */}
+        <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden text-xs font-semibold" role="group" aria-label="Velocidade do replay">
+          {SPEEDS.map(v => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setSpeed(v)}
+              className={`px-2.5 py-1.5 transition-colors ${
+                speed === v ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {v}x
+            </button>
+          ))}
         </div>
       </div>
     </div>

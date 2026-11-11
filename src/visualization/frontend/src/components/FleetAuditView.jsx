@@ -2,6 +2,8 @@ import React from 'react';
 import { ChevronRight } from 'lucide-react';
 import InfoPopover from './InfoPopover';
 
+const formatFitness = (v) => (Number.isFinite(v) ? v.toFixed(2) : 'N/D');
+
 export default function FleetAuditView({ auditData, loading, setFilters, setActiveTab }) {
   const handleInspectLine = (lineCode, targetDir = null) => {
     setFilters(prev => {
@@ -101,12 +103,12 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
           <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-            Aderência Média da Frota
-            <InfoPopover title="Aderência Média da Frota">
-              Trace fitness médio (Token-Based Replay, PM4Py) ponderado pelo número de viagens de cada linha.
+            Fitness Médio da Frota
+            <InfoPopover title="Fitness Médio da Frota">
+              Média simples, entre as linhas, do trace fitness (0–1) obtido por Token-Based Replay (PM4Py).
             </InfoPopover>
           </div>
-          <div className="text-2xl font-black text-emerald-600 mt-1">{summary.avg_fleet_adherence ?? summary.avg_fleet_conformance}%</div>
+          <div className="text-2xl font-black text-emerald-600 mt-1">{formatFitness((summary.avg_fleet_adherence ?? 0) / 100)}</div>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
@@ -140,16 +142,35 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
                 <th className="py-3 px-5">Linha</th>
                 <th className="py-3 px-5">Nome / Tipo</th>
                 <th className="py-3 px-5 text-right">Viagens (IDA+VOLTA)</th>
-                <th className="py-3 px-5">Aderência / Conformidade</th>
-                <th className="py-3 px-5 text-right">Paradas Puladas</th>
-                <th className="py-3 px-5 text-right">Gargalos (&gt;2min)</th>
-                <th className="py-3 px-5 text-center">Status</th>
+                <th className="py-3 px-5">Fitness Médio</th>
+                <th className="py-3 px-5 text-right">% Viagens Conformes</th>
+                <th className="py-3 px-5 text-right">Paradas Omitidas</th>
+                <th className="py-3 px-5 text-right">
+                  <span className="inline-flex items-center gap-1">
+                    Gargalos (&gt;2min)
+                    <InfoPopover title="Gargalos (>2 min)" align="right">
+                      Número de transições do DFG de desempenho cujo tempo médio entre passagens consecutivas passa de 2 minutos, somando os sentidos.
+                    </InfoPopover>
+                  </span>
+                </th>
+                <th className="py-3 px-5 text-center">
+                  <span className="inline-flex items-center gap-1">
+                    Status
+                    <InfoPopover title="Critério de Status" align="right">
+                      {auditData?.regime === 'A' ? (
+                        <>Regime A (amostragem de 2 min): CONFORME com fitness ≥ 0,50 e até 5 gargalos; ATENÇÃO com fitness ≥ 0,35; CRÍTICO abaixo disso.</>
+                      ) : (
+                        <>Regime B (amostragem de 20 s): CONFORME com ≥ 90% de viagens conformes e até 5 gargalos; ATENÇÃO com ≥ 70%; CRÍTICO abaixo disso.</>
+                      )}
+                    </InfoPopover>
+                  </span>
+                </th>
                 <th className="py-3 px-5 text-right">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
               {lines.map((l) => {
-                const score = l.adherence_pct ?? l.fit_percentage ?? 0;
+                const score = l.adherence_pct ?? 0;
                 return (
                 <tr key={l.line} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3.5 px-5 font-bold text-slate-800">
@@ -167,24 +188,22 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
                   </td>
                   <td className="py-3.5 px-5 text-right font-mono text-slate-700">{l.total_cases}</td>
                   <td className="py-3.5 px-5">
-                    <div className="w-40 flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${
-                              score >= 80 ? 'bg-emerald-500' : score >= 45 ? 'bg-amber-500' : 'bg-rose-500'
-                            }`}
-                            style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
-                          />
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-700 w-12 text-right">
-                          {score.toFixed(1)}%
-                        </span>
+                    <div className="w-36 flex items-center gap-2">
+                      <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            score >= 80 ? 'bg-emerald-500' : score >= 45 ? 'bg-amber-500' : 'bg-rose-500'
+                          }`}
+                          style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
+                        />
                       </div>
-                      <span className="text-[9px] text-slate-400 font-mono">
-                        {l.fit_percentage > 0 ? `${l.fit_percentage.toFixed(1)}% 100% conformes` : 'Subamostragem de 2m'}
+                      <span className="text-[11px] font-bold text-slate-700 w-9 text-right font-mono">
+                        {formatFitness(score / 100)}
                       </span>
                     </div>
+                  </td>
+                  <td className="py-3.5 px-5 text-right font-mono text-slate-700">
+                    {l.fit_percentage == null ? 'N/D' : `${l.fit_percentage.toFixed(1)}%`}
                   </td>
                   <td className="py-3.5 px-5 text-right">
                     <div className="flex flex-col items-end">
@@ -198,7 +217,7 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
                               key={dir}
                               type="button"
                               onClick={() => handleInspectLine(l.line, dir)}
-                              title={`Inspecionar linha ${l.line} no sentido ${dir} (${count} paradas puladas)`}
+                              title={`Inspecionar linha ${l.line} no sentido ${dir} (${count} paradas omitidas)`}
                               className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] transition-all cursor-pointer ${
                                 count > 0
                                   ? 'font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300'

@@ -140,11 +140,8 @@ export default function SidebarFilters({
       <div className="p-5 border-b border-slate-200 flex items-center justify-between">
         <h1 className="text-lg font-bold text-slate-800 tracking-tight flex items-center gap-2">
           <Bus className="h-5 w-5 text-blue-600 flex-shrink-0" />
-          <span>URBS Process Mining</span>
+          <span>URBS · Mineração de Processos</span>
         </h1>
-        <span className="bg-blue-50 text-blue-700 text-xs px-2.5 py-0.5 rounded-full font-medium border border-blue-100">
-          CCO Dashboard
-        </span>
       </div>
 
       {/* Config Form */}

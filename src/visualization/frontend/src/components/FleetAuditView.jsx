@@ -52,7 +52,7 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
       <div className="flex items-center justify-between border-b border-slate-200 pb-5">
         <div>
           <h2 className="text-lg font-bold text-slate-800 tracking-tight flex items-center gap-2">
-            Auditoria Operacional Diária — CCO URBS
+            Auditoria diária
             <InfoPopover title="Auditoria Operacional Diária">
               Painel executivo de encerramento do dia para fiscalização de itinerário, pontualidade e paradas omitidas.
             </InfoPopover>

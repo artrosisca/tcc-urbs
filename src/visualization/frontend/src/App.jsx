@@ -229,12 +229,7 @@ export default function App() {
           <div className="h-10 px-6 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
             {activeTab === 'audit' ? (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-700">
-                  Visão Geral da Frota URBS — Painel Executivo CCO
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800">
-                  Regime {regimeParam}
-                </span>
+                <span className="text-xs font-semibold text-slate-700">Visão geral da frota</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 overflow-x-auto py-1">
@@ -257,7 +252,7 @@ export default function App() {
                   </button>
                   <span className="text-slate-300">›</span>
                   <span className="font-semibold text-slate-800">
-                    Linha {filters.line} {activeLineName ? `(${activeLineName})` : ''}
+                    Linha {filters.line}{activeLineName ? ` · ${activeLineName}` : ''}
                   </span>
                   <span className="text-slate-300">›</span>
                   <span className="font-semibold text-blue-700">

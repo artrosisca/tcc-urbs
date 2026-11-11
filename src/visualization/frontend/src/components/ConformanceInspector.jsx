@@ -43,7 +43,7 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
 
       <div>
         <h2 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-          Inspetor de Conformidade Normativa Topológica
+          Conformidade com o itinerário
           <InfoPopover title="Conformidade Normativa">
             Estimativa estatística de aderência ao traçado planejado e detecção de paradas omitidas
           </InfoPopover>

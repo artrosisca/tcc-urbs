@@ -52,7 +52,7 @@ export default function ProcessVisualizer({ petriNetData }) {
     <div className="w-full h-full bg-slate-50 flex flex-col p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-bold text-slate-800">Rede de Petri Normativa (Descoberta)</h2>
+          <h2 className="text-sm font-bold text-slate-800">Rede de Petri descoberta</h2>
           <p className="text-xs text-slate-500">Fluxo lógico sequencial gerado via algoritmo Inductive Miner do PM4Py</p>
         </div>
       </div>

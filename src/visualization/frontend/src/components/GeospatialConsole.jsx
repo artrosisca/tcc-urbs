@@ -1,19 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import DeckGL from '@deck.gl/react';
-import { MapView } from '@deck.gl/core';
+import { MapView, WebMercatorViewport } from '@deck.gl/core';
 import { TileLayer } from '@deck.gl/geo-layers';
 import { PathLayer, ScatterplotLayer, IconLayer, BitmapLayer, TextLayer } from '@deck.gl/layers';
 import { TripsLayer } from '@deck.gl/geo-layers';
-import { X, Play, Pause, Compass, MapPin, Bus, Calendar, Activity, CheckCircle2, Clock, RotateCw } from 'lucide-react';
+import { X, Play, Pause, Bus, Calendar, RotateCw } from 'lucide-react';
 
-const LINE_ARCHETYPES = {
-  '010': 'Interbairros I (Circular)',
-  '541': 'Bairro Novo A (Alimentador)',
-  '542': 'Bairro Novo B (Alimentador)',
-  '500': 'Ligeirinho Boqueirão',
-  '203': 'Santa Cândida / Capão Raso',
-  '303': 'Centenário / Campo Comprido'
-};
+const SPEEDS = [1, 5, 20];
+const DEFAULT_VIEW = { longitude: -49.2768, latitude: -25.4311, zoom: 12 }; // Curitiba
+
+// Enquadra todas as paradas da linha na área visível do mapa
+function fitStops(stops, width, height) {
+  if (!stops?.length || !width || !height) return DEFAULT_VIEW;
+  const lons = stops.map(s => s.lon);
+  const lats = stops.map(s => s.lat);
+  const { longitude, latitude, zoom } = new WebMercatorViewport({ width, height }).fitBounds(
+    [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+    { padding: { top: 60, bottom: 60, left: 60, right: 320 }, maxZoom: 16 }
+  );
+  return { longitude, latitude, zoom };
+}
+const BASE_STEP_SECS = 2; // segundos simulados por quadro em 1x
 
 function formatDisplayPeriod(startDate, endDate) {
   if (!startDate) return '';
@@ -28,22 +35,22 @@ function formatDisplayPeriod(startDate, endDate) {
   return `${toBr(startDate)} a ${toBr(endDate)}`;
 }
 
-export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogicalMode, isLoading, filters, activeTripId, onClearTrip }) {
-  const [viewState, setViewState] = useState({
-    longitude: -49.2768, // Curitiba
-    latitude: -25.4311,
-    zoom: 12,
-    pitch: 30,
+export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogicalMode, isLoading, filters, activeTripId, activeTrip, onClearTrip }) {
+  const mapAreaRef = useRef(null);
+  const [viewState, setViewState] = useState(() => ({
+    ...fitStops(mapData?.stops, window.innerWidth - 320, window.innerHeight - 170),
+    pitch: 0,
     bearing: 0,
     maxZoom: 20,
     minZoom: 9
-  });
+  }));
 
   // Time controls
   const [isPlaying, setIsPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [maxTime, setMaxTime] = useState(86400);
   const [minTime, setMinTime] = useState(0); // 24h in seconds
+  const [speed, setSpeed] = useState(1);
   const animationRef = useRef(null);
 
   // Extract paths for TripsLayer
@@ -57,7 +64,10 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
   const activeDirection = meta?.direction || filters?.direction || 'VOLTA';
   const activeStartDate = meta?.start_date || filters?.startDate || '';
   const activeEndDate = meta?.end_date || filters?.endDate || '';
-  const displayRegime = meta?.regime || (filters?.regime?.includes('20s') || filters?.regime?.includes('B') ? 'B' : 'A');
+  const activeLineName = meta?.line_name || null;
+  // Paradas omitidas da viagem aberta a partir da Conformidade
+  const omittedSeqs = new Set(activeTrip?.skipped_seqs || []);
+  const activeTripHasPath = !activeTripId || trips.some(t => t.id === activeTripId);
 
   const isDirectionMismatch = Boolean(
     filters?.direction &&
@@ -84,16 +94,9 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
     // Set stops
     if (mapData.stops) {
       setRawStops(mapData.stops);
-      // Center map around the middle stop
-      if (mapData.stops.length > 0) {
-        const midStop = mapData.stops[Math.floor(mapData.stops.length / 2)];
-        setViewState(prev => ({
-          ...prev,
-          longitude: midStop.lon,
-          latitude: midStop.lat,
-          zoom: 13
-        }));
-      }
+      const el = mapAreaRef.current;
+      const fitted = fitStops(mapData.stops, el?.clientWidth, el?.clientHeight);
+      setViewState(prev => ({ ...prev, ...fitted }));
     }
 
     // Set shape line
@@ -156,6 +159,8 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
 
       if (activeTripId) {
         const singleTrip = processedTrips.find(t => t.id === activeTripId);
+        // Viagem sem trajeto (ex.: só 1 passagem): não anima as outras viagens no lugar dela
+        if (!singleTrip) setTrips([]);
         if (singleTrip) {
           setTrips([singleTrip]);
           const t_min = Math.min(...singleTrip.timestamps);
@@ -183,7 +188,7 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
             setIsPlaying(false);
             return maxTime;
           }
-          return t + 2; // Speed multiplier (2 seconds per frame)
+          return t + BASE_STEP_SECS * speed;
         });
         animationRef.current = requestAnimationFrame(animate);
       };
@@ -195,7 +200,7 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [isPlaying, maxTime]);
+  }, [isPlaying, maxTime, speed]);
 
   const handleTimeSliderChange = (e) => {
     setTime(parseInt(e.target.value));
@@ -245,8 +250,9 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
       id: 'stops-points-layer',
       data: rawStops,
       getPosition: d => [d.lon, d.lat],
-      getRadius: 15,
-      getFillColor: [15, 23, 42, 225], // Dark slate
+      getRadius: d => (omittedSeqs.has(d.seq) ? 28 : 15),
+      getFillColor: d => (omittedSeqs.has(d.seq) ? [245, 158, 11, 255] : [15, 23, 42, 225]),
+      updateTriggers: { getRadius: activeTrip?.case_id, getFillColor: activeTrip?.case_id },
       getLineColor: [255, 255, 255, 255],
       getLineWidth: 2,
       lineWidthMinPixels: 1,
@@ -326,7 +332,7 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
   return (
     <div className="relative w-full h-full bg-slate-100 flex flex-col">
       {/* Map Area */}
-      <div className="flex-1 relative overflow-hidden">
+      <div ref={mapAreaRef} className="flex-1 relative overflow-hidden">
         {isLoading && (
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50">
             <div className="bg-white p-5 rounded-xl shadow-lg border border-slate-150 flex flex-col items-center gap-3">
@@ -346,78 +352,39 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
 
 
         {/* Floating Active Configuration & Sync Status Chip */}
-        <div className="absolute top-4 right-4 bg-white/95 backdrop-blur shadow-md rounded-xl p-3 border border-slate-200/90 z-20 max-w-sm space-y-2 select-none">
-          {/* Header row: Status indicator + Regime badge */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
-                {isLoading || isDataStale ? (
-                  <>
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
-                  </>
-                ) : (
-                  <>
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                  </>
-                )}
-              </span>
-              <span className="font-bold tracking-tight text-slate-700 text-xs flex items-center gap-1.5">
-                {isLoading ? (
-                  <>
-                    <RotateCw className="h-3 w-3 animate-spin text-amber-600" />
-                    <span>Carregando mapa...</span>
-                  </>
-                ) : isDataStale ? (
-                  <>
-                    <RotateCw className="h-3 w-3 animate-spin text-amber-600" />
-                    <span>Sincronizando com filtros...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                    <span>Mapa Sincronizado</span>
-                  </>
-                )}
-              </span>
+        <div className="absolute top-4 right-4 bg-white/95 backdrop-blur shadow-md rounded-xl p-3 border border-slate-200/90 z-20 w-96 space-y-2 select-none">
+          {/* Só aparece enquanto carrega ou sincroniza */}
+          {(isLoading || isDataStale) && (
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700">
+              <RotateCw className="h-3 w-3 animate-spin" />
+              <span>{isLoading ? 'Carregando mapa...' : 'Sincronizando com filtros...'}</span>
             </div>
-
-            <span
-              className={`px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wider uppercase ${
-                displayRegime === 'B'
-                  ? 'bg-indigo-100 text-indigo-700 border border-indigo-200/70'
-                  : 'bg-amber-100 text-amber-800 border border-amber-200/70'
-              }`}
-            >
-              {displayRegime === 'B' ? 'Regime B (20s)' : 'Regime A (2m)'}
-            </span>
-          </div>
+          )}
 
           {/* Line & Direction row */}
-          <div className="flex items-center gap-1.5 border-t border-slate-100 pt-2">
+          <div className="flex items-center gap-1.5">
             <Bus className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
             <span className="font-extrabold text-slate-800 text-xs">
               Linha {activeLine}
             </span>
             <span className="text-slate-300">•</span>
-            <span className="font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
+            <span className="font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">
               {activeDirection}
             </span>
-            {LINE_ARCHETYPES[activeLine] && (
-              <span className="text-slate-400 text-[10px] truncate max-w-[130px]" title={LINE_ARCHETYPES[activeLine]}>
-                {LINE_ARCHETYPES[activeLine]}
+            {activeLineName && (
+              <span className="text-slate-400 text-[11px] truncate max-w-[130px]" title={activeLineName}>
+                {activeLineName}
               </span>
             )}
           </div>
 
           {/* Period & counts row */}
-          <div className="flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-150/60">
+          <div className="flex items-center justify-between text-xs text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-150/60">
             <div className="flex items-center gap-1 font-medium">
               <Calendar className="h-3 w-3 text-slate-400 flex-shrink-0" />
-              <span className="text-[10px]">{formatDisplayPeriod(activeStartDate, activeEndDate)}</span>
+              <span className="text-[11px]">{formatDisplayPeriod(activeStartDate, activeEndDate)}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
               <span>{totalStopsCount} paradas</span>
               <span>•</span>
               <span>{totalTripsCount} viagens</span>
@@ -427,17 +394,22 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
           {/* Active trip banner */}
           {activeTripId && (
             <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-200 px-2.5 py-1.5 rounded-lg mt-2">
-              <span className="text-[10px] font-bold text-blue-800 truncate" title={activeTripId}>
+              <span className="text-[11px] font-bold text-blue-800 truncate" title={activeTripId}>
                 Viagem sob análise: {activeTripId}
               </span>
               <button
                 type="button"
                 onClick={onClearTrip}
-                className="flex items-center gap-1 text-[10px] font-semibold text-blue-700 hover:text-blue-900 whitespace-nowrap"
+                className="flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:text-blue-900 whitespace-nowrap"
               >
                 <X className="h-3 w-3" /> Ver todas as viagens
               </button>
             </div>
+          )}
+          {activeTripId && !activeTripHasPath && (
+            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-lg">
+              Esta viagem tem menos de duas passagens registradas, então não há trajeto para animar. O mapa mostra só as paradas omitidas.
+            </p>
           )}
         </div>
 
@@ -451,6 +423,12 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
             <span className="w-3.5 h-1.5 rounded-full bg-blue-500"></span>
             <span className="text-slate-600 font-medium">Ônibus (Log de Eventos)</span>
           </div>
+          {omittedSeqs.size > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-amber-500 border border-white"></span>
+              <span className="text-slate-600 font-medium">Parada omitida nesta viagem ({omittedSeqs.size})</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -471,10 +449,7 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
         {/* Timeline Slider */}
         <div className="flex-1 flex flex-col gap-1.5">
           <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
-            <span className="flex items-center gap-1">
-              <Compass className="h-3.5 w-3.5 animate-spin-slow" />
-              <span>Linha do Tempo</span>
-            </span>
+            <span>Linha do tempo</span>
             <span className="font-mono text-slate-700 bg-slate-100 py-0.5 px-2 rounded-md font-bold">
               {formatSeconds(time)}
             </span>
@@ -487,6 +462,22 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
             onChange={handleTimeSliderChange}
             className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-slate-900 outline-none"
           />
+        </div>
+
+        {/* Replay speed */}
+        <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden text-xs font-semibold" role="group" aria-label="Velocidade do replay">
+          {SPEEDS.map(v => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setSpeed(v)}
+              className={`px-2.5 py-1.5 transition-colors ${
+                speed === v ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {v}x
+            </button>
+          ))}
         </div>
       </div>
     </div>

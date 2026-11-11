@@ -9,8 +9,10 @@ organizados por dia e hora.
 1. Instale o Python 3 (https://www.python.org/downloads/). Na instalacao,
    marque a opcao **"Add Python to PATH"**.
 2. Baixe a pasta `coletor` deste repositorio.
-3. Clique duas vezes em **`executar_coletor.bat`**.
-4. Deixe a janela aberta. Para parar, aperte **CTRL+C**.
+3. Copie `.env.example` para `.env` (na mesma pasta) e troque
+   `coloque_o_codigo_aqui` pelo codigo de acesso da URBS.
+4. Clique duas vezes em **`executar_coletor.bat`**.
+5. Deixe a janela aberta. Para parar, aperte **CTRL+C**.
 
 O arquivo `.bat` instala as dependencias e desativa a suspensao do Windows
 enquanto coleta.

@@ -4,10 +4,29 @@ import time
 import os
 import datetime
 
+def _ler_api_code():
+    """Lê o código de acesso da URBS de URBS_API_CODE ou de um arquivo .env."""
+    code = os.environ.get("URBS_API_CODE")
+    if code:
+        return code.strip()
+    pasta = os.path.dirname(os.path.abspath(__file__))
+    for p in (pasta, os.path.dirname(pasta), os.path.dirname(os.path.dirname(pasta))):
+        env = os.path.join(p, ".env")
+        if os.path.exists(env):
+            with open(env, encoding="utf-8") as f:
+                for linha in f:
+                    chave, _, valor = linha.strip().partition("=")
+                    if chave.strip() == "URBS_API_CODE" and valor.strip():
+                        return valor.strip().strip('"').strip("'")
+    raise SystemExit(
+        "Defina URBS_API_CODE (variável de ambiente ou arquivo .env; veja .env.example)."
+    )
+
+
 # --- Configurações da API ---
 BASE_URL = "https://transporteservico.urbs.curitiba.pr.gov.br/"
 ENDPOINT = "getVeiculos.php"
-API_CODE = "65d35"
+API_CODE = _ler_api_code()
 FULL_URL = f"{BASE_URL}{ENDPOINT}"
 PARAMS = {'c': API_CODE}
 

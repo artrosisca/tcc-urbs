@@ -22,3 +22,6 @@ tcc-latex/
 TCC_DEFINITIVO.pdf
 TCC_DEFINITIVO_HTML/
 test_tile.png
+
+# Segredos
+.env

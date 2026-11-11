@@ -253,6 +253,7 @@ class ProcessMiningEngine:
                 visited_seqs = set(case_sorted['stop_seq'].dropna().astype(int)) if use_seq else set()
 
                 skipped = []
+                skipped_seqs = []
                 interp_count = 0
                 for s in stops_records:
                     s_seq = s.get('SEQ')
@@ -267,6 +268,7 @@ class ProcessMiningEngine:
                         clean_name = str(s_nome)
                         skipped.append(clean_name)
                         if use_seq:
+                            skipped_seqs.append(int(s_seq))
                             skipped_stops_all.append((int(s_seq), clean_name))
                         else:
                             skipped_stops_all.append((-1, clean_name))
@@ -276,6 +278,11 @@ class ProcessMiningEngine:
                 total_interpolated += interp_count
                 veh = case_group['org:resource'].iloc[0] if 'org:resource' in case_group.columns else "N/A"
                 tab = case_group['tabela'].iloc[0] if 'tabela' in case_group.columns else "N/A"
+                start_time = None
+                if 'time:timestamp' in case_group.columns:
+                    ts = pd.to_datetime(case_group['time:timestamp'], errors='coerce').min()
+                    if pd.notna(ts):
+                        start_time = ts.strftime('%Y-%m-%d %H:%M')
 
                 deviations.append({
                     'case_id': str(case_id),
@@ -285,6 +292,8 @@ class ProcessMiningEngine:
                     'total_visited': len(visited),
                     'skipped_count': len(skipped),
                     'skipped_stops': skipped,
+                    'skipped_seqs': skipped_seqs,
+                    'start_time': start_time,
                     'interpolated_count': interp_count
                 })
 
@@ -315,6 +324,8 @@ class ProcessMiningEngine:
                         "total_visited": int(row['total_visited']),
                         "skipped_count": int(row['skipped_count']),
                         "skipped_stops": row['skipped_stops'],
+                        "skipped_seqs": row['skipped_seqs'],
+                        "start_time": row['start_time'],
                         "interpolated_count": int(row['interpolated_count'])
                     })
 
@@ -415,6 +426,8 @@ class ProcessMiningEngine:
                 "total_visited": int(d.get("total_visited", 0)),
                 "skipped_count": int(d.get("skipped_count", 0)),
                 "skipped_stops": d.get("skipped_stops", []),
+                "skipped_seqs": d.get("skipped_seqs", []),
+                "start_time": d.get("start_time"),
                 "interpolated_count": int(d.get("interpolated_count", 0))
             }
             for d in top_deviant

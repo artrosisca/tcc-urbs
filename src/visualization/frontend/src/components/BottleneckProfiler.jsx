@@ -42,8 +42,8 @@ export default function BottleneckProfiler({ performanceData }) {
     <div className="w-full h-full bg-slate-50 flex flex-col p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-bold text-slate-800">Perfilador de Gargalos Operacionais (Desempenho)</h2>
-          <p className="text-xs text-slate-500">Mapeamento de tempos de trânsito médios (em dias, horas, minutos) no Directly-Follows Graph gerado nativamente pela PM4Py</p>
+          <h2 className="text-sm font-bold text-slate-800">Gargalos operacionais</h2>
+          <p className="text-xs text-slate-500">Tempo médio entre passagens consecutivas registradas (Directly-Follows Graph de desempenho, PM4Py). Quando há parada omitida, a seta liga paradas não vizinhas.</p>
         </div>
       </div>
 

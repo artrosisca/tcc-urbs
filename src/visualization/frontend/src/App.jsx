@@ -8,6 +8,15 @@ import FleetAuditView from './components/FleetAuditView';
 import MiningConsole from './components/MiningConsole';
 import { Layers, GitCommit, ShieldAlert, BarChart3, ClipboardCheck, ArrowLeft } from 'lucide-react';
 
+// Ordem das abas = ordem de apresentação no TCC
+const TABS = [
+  { id: 'audit', label: 'Auditoria Diária (CCO)', Icon: ClipboardCheck },
+  { id: 'conformance', label: 'Conformidade Normativa', Icon: ShieldAlert },
+  { id: 'petri', label: 'Rede de Petri (Descoberta)', Icon: GitCommit },
+  { id: 'performance', label: 'Gargalos Operacionais (DFG)', Icon: BarChart3 },
+  { id: 'map', label: 'Mapa de Replay', Icon: Layers },
+];
+
 const STORAGE_FILTERS_KEY = 'urbs_pm_filters_v2';
 const STORAGE_TAB_KEY = 'urbs_pm_active_tab';
 
@@ -33,7 +42,7 @@ function getSavedFilters() {
 function getSavedTab() {
   try {
     const raw = localStorage.getItem(STORAGE_TAB_KEY);
-    if (raw && ['audit', 'conformance', 'performance', 'map', 'petri'].includes(raw)) {
+    if (raw && TABS.some(t => t.id === raw)) {
       return raw;
     }
   } catch {}
@@ -197,75 +206,22 @@ export default function App() {
           {/* Row 1: Funnel Navigation Tabs (1 -> 2 -> 3 -> 4 -> 5) */}
           <div className="h-12 px-6 flex items-center justify-between">
             <div className="flex items-center gap-1">
-              <button
-                id="tab-audit"
-                type="button"
-                onClick={() => setActiveTab('audit')}
-                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                  activeTab === 'audit'
-                    ? 'bg-slate-100 text-slate-800 font-bold'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <ClipboardCheck className="h-3.5 w-3.5" />
-                <span>1. Auditoria Diária (CCO)</span>
-              </button>
-
-              <button
-                id="tab-conformance"
-                type="button"
-                onClick={() => setActiveTab('conformance')}
-                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                  activeTab === 'conformance'
-                    ? 'bg-slate-100 text-slate-800 font-bold'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <ShieldAlert className="h-3.5 w-3.5" />
-                <span>2. Conformidade Normativa</span>
-              </button>
-
-              <button
-                id="tab-performance"
-                type="button"
-                onClick={() => setActiveTab('performance')}
-                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                  activeTab === 'performance'
-                    ? 'bg-slate-100 text-slate-800 font-bold'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <BarChart3 className="h-3.5 w-3.5" />
-                <span>3. Gargalos Operacionais (DFG)</span>
-              </button>
-
-              <button
-                id="tab-map"
-                type="button"
-                onClick={() => setActiveTab('map')}
-                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                  activeTab === 'map'
-                    ? 'bg-slate-100 text-slate-800 font-bold'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <Layers className="h-3.5 w-3.5" />
-                <span>4. Mapa de Replay</span>
-              </button>
-
-              <button
-                id="tab-petri"
-                type="button"
-                onClick={() => setActiveTab('petri')}
-                className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
-                  activeTab === 'petri'
-                    ? 'bg-slate-100 text-slate-800 font-bold'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                <GitCommit className="h-3.5 w-3.5" />
-                <span>5. Descoberta de Processos</span>
-              </button>
+              {TABS.map(({ id, label, Icon }, i) => (
+                <button
+                  key={id}
+                  id={`tab-${id}`}
+                  type="button"
+                  onClick={() => setActiveTab(id)}
+                  className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold tracking-tight transition-all ${
+                    activeTab === id
+                      ? 'bg-slate-100 text-slate-800 font-bold'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{i + 1}. {label}</span>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -273,12 +229,7 @@ export default function App() {
           <div className="h-10 px-6 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
             {activeTab === 'audit' ? (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-700">
-                  Visão Geral da Frota URBS — Painel Executivo CCO
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800">
-                  Regime {regimeParam}
-                </span>
+                <span className="text-xs font-semibold text-slate-700">Visão geral da frota</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 overflow-x-auto py-1">
@@ -291,7 +242,7 @@ export default function App() {
                   <span>Voltar à Frota</span>
                 </button>
 
-                <div className="flex items-center gap-1.5 text-[11px]">
+                <div className="flex items-center gap-1.5 text-xs">
                   <button
                     type="button"
                     onClick={() => setActiveTab('audit')}
@@ -301,7 +252,7 @@ export default function App() {
                   </button>
                   <span className="text-slate-300">›</span>
                   <span className="font-semibold text-slate-800">
-                    Linha {filters.line} {activeLineName ? `(${activeLineName})` : ''}
+                    Linha {filters.line}{activeLineName ? ` · ${activeLineName}` : ''}
                   </span>
                   <span className="text-slate-300">›</span>
                   <span className="font-semibold text-blue-700">
@@ -313,7 +264,7 @@ export default function App() {
                       ? filters.startDate.split('-').reverse().join('/')
                       : `${filters.startDate.split('-').reverse().join('/')} a ${filters.endDate.split('-').reverse().join('/')}`}
                   </span>
-                  <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded bg-blue-100 text-blue-800">
+                  <span className="ml-1 px-1.5 py-0.5 text-[11px] font-bold rounded bg-blue-100 text-blue-800">
                     Regime {regimeParam}
                   </span>
                 </div>
@@ -324,7 +275,7 @@ export default function App() {
             {activeTab !== 'audit' && (
               <div className="flex items-center gap-4 text-xs transition-opacity duration-200">
                 {(isLoading || conformanceLoading) && (
-                  <div className="flex items-center gap-1.5 text-blue-600 font-semibold text-[11px] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200 shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-blue-600 font-semibold text-xs bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200 shadow-2xs">
                     <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-300 border-t-blue-700"></div>
                     <span>Atualizando {filters.direction}...</span>
                   </div>
@@ -332,34 +283,34 @@ export default function App() {
                 {conformanceLoading ? (
                   <>
                     <div className="flex flex-col text-right">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Fitness</span>
+                      <span className="text-[11px] font-bold text-slate-400">Fitness</span>
                       <span className="inline-block h-4 w-10 bg-slate-200 animate-pulse rounded" />
                     </div>
                     <div className="flex flex-col text-right">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Conformidade</span>
+                      <span className="text-[11px] font-bold text-slate-400">Conformidade</span>
                       <span className="inline-block h-4 w-10 bg-slate-200 animate-pulse rounded" />
                     </div>
                     <div className="flex flex-col text-right">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Viagens</span>
+                      <span className="text-[11px] font-bold text-slate-400">Total Viagens</span>
                       <span className="inline-block h-4 w-10 bg-slate-200 animate-pulse rounded" />
                     </div>
                   </>
                 ) : conformanceData && (
                   <>
                     <div className="flex flex-col text-right">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Fitness</span>
+                      <span className="text-[11px] font-bold text-slate-400">Fitness</span>
                       <span className="font-extrabold text-slate-700">
-                        {conformanceData.avg_fitness ? conformanceData.avg_fitness.toFixed(3) : '0.000'}
+                        {conformanceData.avg_fitness ? conformanceData.avg_fitness.toFixed(2) : '0.00'}
                       </span>
                     </div>
                     <div className="flex flex-col text-right">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Conformidade</span>
+                      <span className="text-[11px] font-bold text-slate-400">Conformidade</span>
                       <span className="font-extrabold text-slate-700">
                         {conformanceData.fit_percentage ? conformanceData.fit_percentage.toFixed(1) : '0.0'}%
                       </span>
                     </div>
                     <div className="flex flex-col text-right">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Viagens</span>
+                      <span className="text-[11px] font-bold text-slate-400">Total Viagens</span>
                       <span className="font-extrabold text-slate-700">{conformanceData.total_cases || 0}</span>
                     </div>
                   </>
@@ -404,6 +355,7 @@ export default function App() {
               isLoading={isLoading}
               filters={filters}
               activeTripId={activeTripId}
+              activeTrip={conformanceData?.deviant_trips?.find(t => t.case_id === activeTripId) || null}
               onClearTrip={() => setActiveTripId(null)}
             />
           )}

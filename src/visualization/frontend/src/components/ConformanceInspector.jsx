@@ -1,6 +1,13 @@
 import React from 'react';
-import { ShieldAlert, CheckCircle, Percent, Activity, Compass } from 'lucide-react';
 import InfoPopover from './InfoPopover';
+
+// "2026-10-09 07:42" -> "09/10 07:42"
+const formatStart = (s) => {
+  if (!s) return '—';
+  const [d, t] = s.split(' ');
+  const [, m, day] = d.split('-');
+  return `${day}/${m} ${t || ''}`.trim();
+};
 
 export default function ConformanceInspector({ conformanceData, isLoading, activeDirection, onTripSelect }) {
   if (!conformanceData) {
@@ -35,7 +42,7 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
 
       <div>
         <h2 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-          Inspetor de Conformidade Normativa Topológica
+          Conformidade com o itinerário
           <InfoPopover title="Conformidade Normativa">
             Estimativa estatística de aderência ao traçado planejado e detecção de paradas omitidas
           </InfoPopover>
@@ -45,11 +52,8 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
       {/* KPI Cards Grid */}
       <div className={`grid grid-cols-5 gap-4 transition-opacity duration-200 ${isLoading ? 'opacity-40 pointer-events-none' : ''}`}>
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
-            <Percent className="h-5 w-5" />
-          </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Fitness Médio
               <InfoPopover title="Fitness Médio">
                 Média do trace fitness (0–1) via Token-Based Replay (PM4Py): fração dos eventos que seguem estritamente a sequência normativa de paradas.
@@ -57,16 +61,13 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
             </div>
             {isLoading
               ? <div className="h-7 w-20 bg-slate-200 animate-pulse rounded-md" />
-              : <div className="text-xl font-extrabold text-slate-800">{avg_fitness ? avg_fitness.toFixed(3) : '0.000'}</div>}
+              : <div className="text-xl font-extrabold text-slate-800">{avg_fitness ? avg_fitness.toFixed(2) : '0.00'}</div>}
           </div>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
-            <CheckCircle className="h-5 w-5" />
-          </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Viagens Conformantes
               <InfoPopover title="Viagens Conformantes">
                 Percentual de viagens com replay 100% conforme — sem tokens faltantes ou remanescentes no modelo normativo.
@@ -79,11 +80,8 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center">
-            <Activity className="h-5 w-5" />
-          </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Total de Casos
               <InfoPopover title="Total de Casos">
                 Viagens avaliadas no escopo atual (linha, sentido, período e filtros ativos).
@@ -96,13 +94,10 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
-            <ShieldAlert className="h-5 w-5" />
-          </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              Paradas Puladas
-              <InfoPopover title="Paradas Puladas">
+            <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+              Paradas Omitidas
+              <InfoPopover title="Paradas Omitidas">
                 Paradas planejadas sem evento de passagem na viagem — indício de evasão de itinerário ou de gap de GPS (cruzar com Incerteza GPS).
               </InfoPopover>
             </div>
@@ -117,11 +112,8 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
-            <Compass className="h-5 w-5" />
-          </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Incerteza GPS (Interpoladas)
               <InfoPopover title="Incerteza GPS">
                 Eventos com horário estimado por interpolação (PCHIP) em falhas de amostragem do GPS; representam incerteza de medição, não desvio operacional.
@@ -139,23 +131,25 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
         {/* Left Side: Deviant Trips Table (3 cols) */}
         <div className="col-span-3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col min-h-[300px]">
           <div className="p-4 border-b border-slate-200">
-            <h3 className="text-xs font-bold text-slate-700">Top 10 Viagens com Maior Desvio (Skipped)</h3>
+            <h3 className="text-xs font-bold text-slate-700">Top 10 Viagens com Mais Paradas Omitidas</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Clique numa viagem para ver o replay no mapa.</p>
           </div>
           <div className="flex-1 overflow-x-auto overflow-y-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
+                  <th className="p-3">Início</th>
                   <th className="p-3">Prefixo</th>
                   <th className="p-3">Tabela</th>
                   <th className="p-3">Visitadas</th>
-                  <th className="p-3 text-rose-600">Puladas</th>
+                  <th className="p-3 text-rose-600">Omitidas</th>
                   <th className="p-3 text-slate-500">Gaps (GPS)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {!deviant_trips || deviant_trips.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="p-4 text-center text-slate-400">Nenhum desvio detectado nesta seleção.</td>
+                    <td colSpan="6" className="p-4 text-center text-slate-400">Nenhum desvio detectado nesta seleção.</td>
                   </tr>
                 ) : (
                   deviant_trips.map((trip, idx) => (
@@ -165,6 +159,7 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
                       onClick={() => onTripSelect && onTripSelect(trip.case_id)}
                       title="Clique para assistir o Replay desta viagem no Mapa"
                     >
+                      <td className="p-3 font-mono text-slate-500 whitespace-nowrap">{formatStart(trip.start_time)}</td>
                       <td className="p-3 font-mono font-bold text-slate-900">{trip.vehicle}</td>
                       <td className="p-3 font-mono">{trip.tabela}</td>
                       <td className="p-3">{trip.total_visited}</td>
@@ -181,12 +176,12 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
         {/* Right Side: Skipped Stops Summary (2 cols) */}
         <div className="col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col min-h-[300px]">
           <div className="p-4 border-b border-slate-200">
-            <h3 className="text-xs font-bold text-slate-700">Frequência de Paradas Puladas</h3>
+            <h3 className="text-xs font-bold text-slate-700">Frequência de Paradas Omitidas</h3>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {!skipped_stops || skipped_stops.length === 0 ? (
               <div className="h-full flex items-center justify-center text-slate-400 text-xs">
-                Nenhum ponto pulado na seleção.
+                Nenhuma parada omitida na seleção.
               </div>
             ) : (
               skipped_stops.map((stop, idx) => {
@@ -210,7 +205,7 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
                         <span className="truncate max-w-[180px]" title={stop.stop_name}>
                           {stop.stop_seq ? `[#${stop.stop_seq}] ` : ''}{stop.stop_name}
                         </span>
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeColor}`}>
+                        <span className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${badgeColor}`}>
                           {absolutePct.toFixed(1)}%
                         </span>
                       </div>

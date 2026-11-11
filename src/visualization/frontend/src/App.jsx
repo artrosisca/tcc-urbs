@@ -232,7 +232,7 @@ export default function App() {
                 <span className="text-xs font-bold text-slate-700">
                   Visão Geral da Frota URBS — Painel Executivo CCO
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800">
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800">
                   Regime {regimeParam}
                 </span>
               </div>
@@ -247,7 +247,7 @@ export default function App() {
                   <span>Voltar à Frota</span>
                 </button>
 
-                <div className="flex items-center gap-1.5 text-[11px]">
+                <div className="flex items-center gap-1.5 text-xs">
                   <button
                     type="button"
                     onClick={() => setActiveTab('audit')}
@@ -269,7 +269,7 @@ export default function App() {
                       ? filters.startDate.split('-').reverse().join('/')
                       : `${filters.startDate.split('-').reverse().join('/')} a ${filters.endDate.split('-').reverse().join('/')}`}
                   </span>
-                  <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded bg-blue-100 text-blue-800">
+                  <span className="ml-1 px-1.5 py-0.5 text-[11px] font-bold rounded bg-blue-100 text-blue-800">
                     Regime {regimeParam}
                   </span>
                 </div>
@@ -280,7 +280,7 @@ export default function App() {
             {activeTab !== 'audit' && (
               <div className="flex items-center gap-4 text-xs transition-opacity duration-200">
                 {(isLoading || conformanceLoading) && (
-                  <div className="flex items-center gap-1.5 text-blue-600 font-semibold text-[11px] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200 shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-blue-600 font-semibold text-xs bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200 shadow-2xs">
                     <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-300 border-t-blue-700"></div>
                     <span>Atualizando {filters.direction}...</span>
                   </div>
@@ -288,34 +288,34 @@ export default function App() {
                 {conformanceLoading ? (
                   <>
                     <div className="flex flex-col text-right">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Fitness</span>
+                      <span className="text-[11px] font-bold text-slate-400">Fitness</span>
                       <span className="inline-block h-4 w-10 bg-slate-200 animate-pulse rounded" />
                     </div>
                     <div className="flex flex-col text-right">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Conformidade</span>
+                      <span className="text-[11px] font-bold text-slate-400">Conformidade</span>
                       <span className="inline-block h-4 w-10 bg-slate-200 animate-pulse rounded" />
                     </div>
                     <div className="flex flex-col text-right">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Viagens</span>
+                      <span className="text-[11px] font-bold text-slate-400">Total Viagens</span>
                       <span className="inline-block h-4 w-10 bg-slate-200 animate-pulse rounded" />
                     </div>
                   </>
                 ) : conformanceData && (
                   <>
                     <div className="flex flex-col text-right">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Fitness</span>
+                      <span className="text-[11px] font-bold text-slate-400">Fitness</span>
                       <span className="font-extrabold text-slate-700">
                         {conformanceData.avg_fitness ? conformanceData.avg_fitness.toFixed(2) : '0.00'}
                       </span>
                     </div>
                     <div className="flex flex-col text-right">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Conformidade</span>
+                      <span className="text-[11px] font-bold text-slate-400">Conformidade</span>
                       <span className="font-extrabold text-slate-700">
                         {conformanceData.fit_percentage ? conformanceData.fit_percentage.toFixed(1) : '0.0'}%
                       </span>
                     </div>
                     <div className="flex flex-col text-right">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Viagens</span>
+                      <span className="text-[11px] font-bold text-slate-400">Total Viagens</span>
                       <span className="font-extrabold text-slate-700">{conformanceData.total_cases || 0}</span>
                     </div>
                   </>

@@ -57,7 +57,7 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
             <Percent className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Fitness Médio
               <InfoPopover title="Fitness Médio">
                 Média do trace fitness (0–1) via Token-Based Replay (PM4Py): fração dos eventos que seguem estritamente a sequência normativa de paradas.
@@ -74,7 +74,7 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
             <CheckCircle className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Viagens Conformantes
               <InfoPopover title="Viagens Conformantes">
                 Percentual de viagens com replay 100% conforme — sem tokens faltantes ou remanescentes no modelo normativo.
@@ -91,7 +91,7 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
             <Activity className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Total de Casos
               <InfoPopover title="Total de Casos">
                 Viagens avaliadas no escopo atual (linha, sentido, período e filtros ativos).
@@ -108,7 +108,7 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
             <ShieldAlert className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Paradas Omitidas
               <InfoPopover title="Paradas Omitidas">
                 Paradas planejadas sem evento de passagem na viagem — indício de evasão de itinerário ou de gap de GPS (cruzar com Incerteza GPS).
@@ -129,7 +129,7 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
             <Compass className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <div className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
               Incerteza GPS (Interpoladas)
               <InfoPopover title="Incerteza GPS">
                 Eventos com horário estimado por interpolação (PCHIP) em falhas de amostragem do GPS; representam incerteza de medição, não desvio operacional.
@@ -148,7 +148,7 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
         <div className="col-span-3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col min-h-[300px]">
           <div className="p-4 border-b border-slate-200">
             <h3 className="text-xs font-bold text-slate-700">Top 10 Viagens com Mais Paradas Omitidas</h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">Clique numa viagem para ver o replay no mapa.</p>
+            <p className="text-xs text-slate-500 mt-0.5">Clique numa viagem para ver o replay no mapa.</p>
           </div>
           <div className="flex-1 overflow-x-auto overflow-y-auto">
             <table className="w-full text-left border-collapse text-xs">
@@ -221,7 +221,7 @@ export default function ConformanceInspector({ conformanceData, isLoading, activ
                         <span className="truncate max-w-[180px]" title={stop.stop_name}>
                           {stop.stop_seq ? `[#${stop.stop_seq}] ` : ''}{stop.stop_name}
                         </span>
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeColor}`}>
+                        <span className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${badgeColor}`}>
                           {absolutePct.toFixed(1)}%
                         </span>
                       </div>

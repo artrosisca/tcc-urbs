@@ -82,7 +82,7 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
       {/* Global Fleet KPIs */}
       <div className="grid grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+          <div className="text-xs font-bold text-slate-400 flex items-center gap-1">
             Linhas Monitoradas
             <InfoPopover title="Linhas Monitoradas">
               Arquétipos operacionais com log de eventos processado dentro do período selecionado.
@@ -92,7 +92,7 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+          <div className="text-xs font-bold text-slate-400 flex items-center gap-1">
             Viagens Totais Auditadas
             <InfoPopover title="Viagens Totais Auditadas">
               Viagens (casos) mineradas no período, somando todos os sentidos (IDA+VOLTA ou CIRCULAR).
@@ -102,7 +102,7 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+          <div className="text-xs font-bold text-slate-400 flex items-center gap-1">
             Fitness Médio da Frota
             <InfoPopover title="Fitness Médio da Frota">
               Média simples, entre as linhas, do trace fitness (0–1) obtido por Token-Based Replay (PM4Py).
@@ -112,7 +112,7 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+          <div className="text-xs font-bold text-slate-400 flex items-center gap-1">
             Paradas Omitidas Detectadas
             <InfoPopover title="Paradas Omitidas">
               Paradas planejadas sem evento de passagem no buffer de proximidade (150 m), somadas em todas as viagens do período.
@@ -138,7 +138,7 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold text-[10px] uppercase tracking-wider">
+              <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold text-[11px]">
                 <th className="py-3 px-5">Linha</th>
                 <th className="py-3 px-5">Nome / Tipo</th>
                 <th className="py-3 px-5 text-right">Viagens (IDA+VOLTA)</th>
@@ -181,7 +181,7 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
                   <td className="py-3.5 px-5">
                     <div className="flex flex-col">
                       <span className="text-slate-700 font-semibold">{l.name}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">
+                      <span className="text-[11px] text-slate-400 font-mono">
                         Escopo: {l.direction || 'IDA+VOLTA'}
                       </span>
                     </div>
@@ -197,7 +197,7 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
                           style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
                         />
                       </div>
-                      <span className="text-[11px] font-bold text-slate-700 w-9 text-right font-mono">
+                      <span className="text-xs font-bold text-slate-700 w-9 text-right font-mono">
                         {formatFitness(score / 100)}
                       </span>
                     </div>
@@ -211,14 +211,14 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
                         {l.skipped_stops_count}
                       </span>
                       {l.skipped_by_direction && Object.keys(l.skipped_by_direction).length > 0 && (
-                        <div className="flex items-center gap-1 text-[10px] mt-0.5 font-mono">
+                        <div className="flex items-center gap-1 text-[11px] mt-0.5 font-mono">
                           {Object.entries(l.skipped_by_direction).map(([dir, count]) => (
                             <button
                               key={dir}
                               type="button"
                               onClick={() => handleInspectLine(l.line, dir)}
                               title={`Inspecionar linha ${l.line} no sentido ${dir} (${count} paradas omitidas)`}
-                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] transition-all cursor-pointer ${
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] transition-all cursor-pointer ${
                                 count > 0
                                   ? 'font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300'
                                   : 'text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200'
@@ -234,7 +234,7 @@ export default function FleetAuditView({ auditData, loading, setFilters, setActi
                   <td className="py-3.5 px-5 text-right font-mono text-slate-700">{l.bottlenecks_count}</td>
                   <td className="py-3.5 px-5 text-center">
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                         l.status === 'CONFORME'
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : l.status === 'ATENÇÃO'

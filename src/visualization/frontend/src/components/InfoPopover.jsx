@@ -40,8 +40,8 @@ export default function InfoPopover({ title, children, align = 'left', className
             align === 'right' ? 'right-0' : 'left-0'
           }`}
         >
-          <span className="block text-[11px] font-bold text-slate-700 mb-1 normal-case tracking-normal">{title}</span>
-          <span className="block text-[11px] text-slate-500 leading-relaxed normal-case tracking-normal font-normal">
+          <span className="block text-xs font-bold text-slate-700 mb-1 normal-case tracking-normal">{title}</span>
+          <span className="block text-xs text-slate-500 leading-relaxed normal-case tracking-normal font-normal">
             {children}
           </span>
         </span>

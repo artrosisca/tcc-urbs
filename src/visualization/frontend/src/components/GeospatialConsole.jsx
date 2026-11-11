@@ -383,7 +383,7 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
             </div>
 
             <span
-              className={`px-2 py-0.5 rounded text-[10px] font-extrabold tracking-wider uppercase ${
+              className={`px-2 py-0.5 rounded text-[11px] font-extrabold ${
                 displayRegime === 'B'
                   ? 'bg-indigo-100 text-indigo-700 border border-indigo-200/70'
                   : 'bg-amber-100 text-amber-800 border border-amber-200/70'
@@ -400,23 +400,23 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
               Linha {activeLine}
             </span>
             <span className="text-slate-300">•</span>
-            <span className="font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
+            <span className="font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">
               {activeDirection}
             </span>
             {activeLineName && (
-              <span className="text-slate-400 text-[10px] truncate max-w-[130px]" title={activeLineName}>
+              <span className="text-slate-400 text-[11px] truncate max-w-[130px]" title={activeLineName}>
                 {activeLineName}
               </span>
             )}
           </div>
 
           {/* Period & counts row */}
-          <div className="flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-150/60">
+          <div className="flex items-center justify-between text-xs text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-150/60">
             <div className="flex items-center gap-1 font-medium">
               <Calendar className="h-3 w-3 text-slate-400 flex-shrink-0" />
-              <span className="text-[10px]">{formatDisplayPeriod(activeStartDate, activeEndDate)}</span>
+              <span className="text-[11px]">{formatDisplayPeriod(activeStartDate, activeEndDate)}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
               <span>{totalStopsCount} paradas</span>
               <span>•</span>
               <span>{totalTripsCount} viagens</span>
@@ -426,13 +426,13 @@ export default function GeospatialConsole({ mapData, isLogicalMode, setIsLogical
           {/* Active trip banner */}
           {activeTripId && (
             <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-200 px-2.5 py-1.5 rounded-lg mt-2">
-              <span className="text-[10px] font-bold text-blue-800 truncate" title={activeTripId}>
+              <span className="text-[11px] font-bold text-blue-800 truncate" title={activeTripId}>
                 Viagem sob análise: {activeTripId}
               </span>
               <button
                 type="button"
                 onClick={onClearTrip}
-                className="flex items-center gap-1 text-[10px] font-semibold text-blue-700 hover:text-blue-900 whitespace-nowrap"
+                className="flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:text-blue-900 whitespace-nowrap"
               >
                 <X className="h-3 w-3" /> Ver todas as viagens
               </button>

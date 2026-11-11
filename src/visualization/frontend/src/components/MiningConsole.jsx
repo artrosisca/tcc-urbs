@@ -42,21 +42,21 @@ export default function MiningConsole({ logs = [], status = 'idle', onClear, onD
     switch (status) {
       case 'running':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
             <RefreshCw className="h-2.5 w-2.5 animate-spin" />
             <span>Em execução</span>
           </span>
         );
       case 'success':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             <CheckCircle className="h-2.5 w-2.5" />
             <span>Sucesso</span>
           </span>
         );
       case 'error':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
             <AlertCircle className="h-2.5 w-2.5" />
             <span>Erro</span>
           </span>
@@ -64,7 +64,7 @@ export default function MiningConsole({ logs = [], status = 'idle', onClear, onD
       case 'idle':
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 border border-slate-700">
             <span className="h-1.5 w-1.5 rounded-full bg-slate-500"></span>
             <span>Ocioso</span>
           </span>
@@ -75,7 +75,7 @@ export default function MiningConsole({ logs = [], status = 'idle', onClear, onD
   return (
     <div className="border-t border-slate-800 bg-slate-950 flex-shrink-0 select-none">
       {/* Console Toggle Header */}
-      <div className="w-full p-3 flex items-center justify-between text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+      <div className="w-full p-3 flex items-center justify-between text-[11px] font-bold text-slate-400">
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
@@ -115,8 +115,8 @@ export default function MiningConsole({ logs = [], status = 'idle', onClear, onD
       {isOpen && (
         <div className="px-3 pb-3 space-y-2">
           {/* Action Toolbar */}
-          <div className="flex items-center justify-between text-[10px] text-slate-400 border-b border-slate-800/80 pb-1.5">
-            <span className="font-mono text-[9px] text-slate-500">
+          <div className="flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800/80 pb-1.5">
+            <span className="font-mono text-[11px] text-slate-500">
               {logs.length} {logs.length === 1 ? 'linha' : 'linhas'} de saída
             </span>
             <div className="flex items-center gap-1.5">
@@ -155,7 +155,7 @@ export default function MiningConsole({ logs = [], status = 'idle', onClear, onD
           {/* Logs Output Container */}
           <div
             ref={scrollRef}
-            className="h-44 overflow-y-auto font-mono text-[10px] bg-slate-900 border border-slate-800 rounded-md p-2 space-y-1 select-text scrollbar-thin scrollbar-thumb-slate-700"
+            className="h-44 overflow-y-auto font-mono text-[11px] bg-slate-900 border border-slate-800 rounded-md p-2 space-y-1 select-text scrollbar-thin scrollbar-thumb-slate-700"
           >
             {logs.length === 0 ? (
               <div className="flex items-center justify-center h-full text-slate-600 italic">

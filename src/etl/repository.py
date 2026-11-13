@@ -32,6 +32,22 @@ def _parse_coord(val: Any) -> Optional[float]:
     return None
 
 
+def _urbs_api_code() -> Optional[str]:
+    """Read the URBS access code from URBS_API_CODE or a .env file at the project root (None if absent)."""
+    code = os.environ.get("URBS_API_CODE")
+    if code:
+        return code.strip()
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    env = os.path.join(root, ".env")
+    if os.path.exists(env):
+        with open(env, encoding="utf-8") as f:
+            for line in f:
+                key, _, value = line.strip().partition("=")
+                if key.strip() == "URBS_API_CODE" and value.strip():
+                    return value.strip().strip('"').strip("'")
+    return None
+
+
 def _fix_encoding(text: Any) -> Any:
     """Repair Latin-1 / UTF-8 mixed encodings without corrupting valid UTF-8."""
     if not isinstance(text, str):
@@ -189,9 +205,12 @@ class FilesystemTelemetryAdapter(TelemetryStorageAdapter):
                             return json.load(f)
                     except Exception:
                         pass
+                api_code = _urbs_api_code()
+                if not api_code:
+                    return []
                 try:
                     import requests
-                    url = f"https://transporteservico.urbs.curitiba.pr.gov.br/{endpoint}?linha={line_code}&c=65d35"
+                    url = f"https://transporteservico.urbs.curitiba.pr.gov.br/{endpoint}?linha={line_code}&c={api_code}"
                     r = requests.get(url, timeout=5)
                     if r.status_code == 200:
                         data = r.json()

@@ -416,3 +416,37 @@ def test_clean_telemetry_filters_by_shape_distance():
     lats = shape_cleaned["LAT"].tolist()
     assert -25.5348 in lats
     assert -25.5260 in lats
+
+
+def test_align_directions_with_itinerary():
+    """Trips are labelled after the itinerary they followed, not after the raw GPS SENT."""
+    stops_df = pd.DataFrame([
+        {"SEQ": 1, "NOME": "Terminal", "SENTIDO": "Bairro"},
+        {"SEQ": 2, "NOME": "Rua A", "SENTIDO": "Bairro"},
+        {"SEQ": 3, "NOME": "Rua B", "SENTIDO": "Bairro"},
+        {"SEQ": 1, "NOME": "Rua B", "SENTIDO": "Terminal"},
+        {"SEQ": 2, "NOME": "Rua C", "SENTIDO": "Terminal"},
+        {"SEQ": 3, "NOME": "Terminal", "SENTIDO": "Terminal"},
+    ])
+    rows = []
+    trips = [
+        ("T1", "VOLTA", [(2, "Rua A"), (3, "Rua B")]),
+        ("T2", "VOLTA", [(1, "Terminal"), (2, "Rua A")]),
+        ("T3", "IDA", [(2, "Rua A"), (3, "Rua B")]),  # GPS still reports IDA on the Bairro itinerary
+        ("T4", "IDA", [(1, "Rua B"), (2, "Rua C")]),
+        ("T5", "IDA", [(2, "Rua C"), (3, "Terminal")]),
+    ]
+    for case_id, sent, stops in trips:
+        for seq, name in stops:
+            rows.append({"case:concept:name": case_id, "gps_direction": sent, "stop_seq": seq,
+                         "concept:name": f"PASSAGEM_{seq:02d}_{name}"})
+    df = pd.DataFrame(rows)
+
+    aligned = TrajectoryReconstructor.align_directions_with_itinerary(df, stops_df)
+    labels = aligned.drop_duplicates("case:concept:name").set_index("case:concept:name")
+
+    assert labels.loc["T3", "gps_direction"] == "VOLTA"
+    assert labels.loc["T3", "gps_direction_raw"] == "IDA"
+    assert labels.loc["T3", "itinerario"] == "Bairro"
+    assert set(labels.loc[["T4", "T5"], "gps_direction"]) == {"IDA"}
+    assert set(labels.loc[["T1", "T2"], "gps_direction"]) == {"VOLTA"}

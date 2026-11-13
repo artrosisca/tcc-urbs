@@ -179,9 +179,14 @@ class ProcessMiningEngine:
             if direction and dir_name != direction:
                 continue
 
-            # Dynamically resolve static direction
+            # Dynamically resolve static direction: prefer the itinerary resolved per trip
+            # (see TrajectoryReconstructor.align_directions_with_itinerary), else the first event.
             sentido_static = None
-            if not group.empty and 'NOME' in static_stops_df.columns and 'SENTIDO' in static_stops_df.columns:
+            if 'itinerario' in group.columns and group['itinerario'].notna().any() and 'SENTIDO' in static_stops_df.columns:
+                itinerary = group['itinerario'].mode().iloc[0]
+                if itinerary in set(static_stops_df['SENTIDO']):
+                    sentido_static = itinerary
+            if not sentido_static and not group.empty and 'NOME' in static_stops_df.columns and 'SENTIDO' in static_stops_df.columns:
                 first_row = group.iloc[0]
                 sample_stop_name = strip_activity_name(first_row['concept:name'])
                 matching = static_stops_df[static_stops_df['NOME'] == sample_stop_name]

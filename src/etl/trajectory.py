@@ -508,6 +508,70 @@ class TrajectoryReconstructor:
 
         return events_df
 
+    @staticmethod
+    def align_directions_with_itinerary(event_log_df: pd.DataFrame, static_stops_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Relabel each trip's gps_direction after the planned itinerary its stops belong to.
+
+        The SENT field of the GPS and the itinerary chosen in match_trip do not always agree
+        (e.g. the bus still reports the previous direction while parked at the terminal), so
+        grouping by the raw SENT mixes trips from both itineraries. Each itinerary (SENTIDO)
+        receives the IDA/VOLTA label held by most of its trips; the raw label is kept in
+        gps_direction_raw.
+        """
+        if event_log_df.empty or static_stops_df is None or static_stops_df.empty \
+                or 'gps_direction' not in event_log_df.columns or 'SENTIDO' not in static_stops_df.columns:
+            return event_log_df
+
+        stops = static_stops_df.dropna(subset=['SENTIDO', 'SEQ']).copy()
+        stops['NOME'] = stops['NOME'].apply(_fix_encoding).astype(str)
+        sentidos = list(stops['SENTIDO'].unique())
+        if len(sentidos) < 2:
+            return event_log_df
+
+        df = event_log_df.copy()
+        if 'gps_direction_raw' not in df.columns:
+            df['gps_direction_raw'] = df['gps_direction']
+        names = df['concept:name'].apply(_fix_encoding).apply(strip_activity_name).astype(str)
+        seqs = pd.to_numeric(df['stop_seq'], errors='coerce') if 'stop_seq' in df.columns else pd.Series(np.nan, index=df.index)
+
+        keys_by_sentido = {
+            sent: set(zip(g['SEQ'].astype(int), g['NOME'])) for sent, g in stops.groupby('SENTIDO')
+        }
+        names_by_sentido = {sent: set(g['NOME']) for sent, g in stops.groupby('SENTIDO')}
+
+        case_itinerary = {}
+        for case_id, idx in df.groupby('case:concept:name').groups.items():
+            case_keys = {(int(q), n) for q, n in zip(seqs.loc[idx], names.loc[idx]) if pd.notna(q)}
+            case_names = set(names.loc[idx])
+            score = {
+                sent: (len(case_keys & keys_by_sentido[sent]), len(case_names & names_by_sentido[sent]))
+                for sent in sentidos
+            }
+            ranked = sorted(score.items(), key=lambda kv: kv[1], reverse=True)
+            if ranked[0][1] > ranked[1][1]:
+                case_itinerary[case_id] = ranked[0][0]
+        if not case_itinerary:
+            return event_log_df
+
+        df['itinerario'] = df['case:concept:name'].map(case_itinerary)
+
+        # Label each itinerary with the SENT held by most of its trips.
+        trips = df.dropna(subset=['itinerario']).drop_duplicates('case:concept:name')
+        votes = trips.groupby(['itinerario', 'gps_direction_raw']).size().unstack(fill_value=0)
+        label = {}
+        for sent in votes.sum(axis=1).sort_values(ascending=False).index:
+            for raw in votes.loc[sent].sort_values(ascending=False).index:
+                if raw not in label.values():
+                    label[sent] = raw
+                    break
+
+        df['gps_direction'] = [
+            label.get(it, raw) if pd.notna(it) else raw
+            for it, raw in zip(df['itinerario'], df['gps_direction_raw'])
+        ]
+        return df
+
     @classmethod
     def reconstruct_event_log(
         cls,
@@ -592,6 +656,7 @@ class TrajectoryReconstructor:
         ]
         df_log['time:timestamp'] = pd.to_datetime(df_log['time:timestamp'])
         df_log = df_log.sort_values(by=['case:concept:name', 'stop_seq'])
+        df_log = cls.align_directions_with_itinerary(df_log, static_data.get('pontos', pd.DataFrame()))
 
         # Save outputs if directory is given
         if output_dir:

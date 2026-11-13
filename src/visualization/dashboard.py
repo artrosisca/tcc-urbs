@@ -226,6 +226,15 @@ def find_event_log_file(line: str, start_date: str, end_date: str) -> Optional[s
         return candidates[-1]
     return None
 
+def read_event_log(csv_path: str, line: str, static_date: str) -> pd.DataFrame:
+    """Read a processed event log with each trip's direction aligned to its planned itinerary."""
+    df = pd.read_csv(csv_path)
+    try:
+        stops_df = load_static_data(static_date, line).get('pontos', pd.DataFrame())
+    except Exception:
+        return df
+    return TrajectoryReconstructor.align_directions_with_itinerary(df, stops_df)
+
 def resolve_direction_subset(df_log: pd.DataFrame, direction: str):
     available_dirs = [str(d) for d in df_log['gps_direction'].dropna().unique()] if 'gps_direction' in df_log.columns else []
     if direction in available_dirs:
@@ -259,7 +268,7 @@ def get_map_data(line: str, start_date: str, end_date: str, direction: str = "VO
         raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
     try:
-        df_log_raw = pd.read_csv(csv_path)
+        df_log_raw = read_event_log(csv_path, line, start_date)
         static_data = load_static_data(start_date, line)
         
         stops_df = static_data.get('pontos', pd.DataFrame())
@@ -365,7 +374,7 @@ def get_discovery(line: str, start_date: str, end_date: str, direction: str = "V
         raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
     try:
-        df_log_raw = pd.read_csv(csv_path)
+        df_log_raw = read_event_log(csv_path, line, start_date)
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour, start_date=start_date, end_date=end_date)
         chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
@@ -387,7 +396,7 @@ def get_conformance(line: str, start_date: str, end_date: str, direction: str = 
         raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
     try:
-        df_log_raw = pd.read_csv(csv_path)
+        df_log_raw = read_event_log(csv_path, line, start_date)
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour, start_date=start_date, end_date=end_date)
         chosen_dir, _ = resolve_direction_subset(df_log, direction)
         static_data = load_static_data(start_date, line)
@@ -405,7 +414,7 @@ def get_performance(line: str, start_date: str, end_date: str, direction: str = 
         raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
     try:
-        df_log_raw = pd.read_csv(csv_path)
+        df_log_raw = read_event_log(csv_path, line, start_date)
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour, start_date=start_date, end_date=end_date)
         chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
@@ -427,7 +436,7 @@ def get_discovery_json(line: str, start_date: str, end_date: str, direction: str
         raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
     try:
-        df_log_raw = pd.read_csv(csv_path)
+        df_log_raw = read_event_log(csv_path, line, start_date)
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour, start_date=start_date, end_date=end_date)
         chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
@@ -448,7 +457,7 @@ def get_performance_json(line: str, start_date: str, end_date: str, direction: s
         raise HTTPException(status_code=400, detail="Log de eventos não processado. Por favor, execute a mineração primeiro.")
         
     try:
-        df_log_raw = pd.read_csv(csv_path)
+        df_log_raw = read_event_log(csv_path, line, start_date)
         df_log = filter_df_by_hours(df_log_raw, start_hour, end_hour, start_date=start_date, end_date=end_date)
         chosen_dir, df_log_dir = resolve_direction_subset(df_log, direction)
         
@@ -534,7 +543,7 @@ def get_fleet_audit(regime: str = "B", start_date: str = None, end_date: str = N
 
         csv_path = sorted(valid_files)[-1]
         try:
-            df = pd.read_csv(csv_path)
+            df = read_event_log(csv_path, l, '2025-10-24' if regime == 'A' else '2025-12-02')
             df['time:timestamp'] = pd.to_datetime(df['time:timestamp'])
             df = df[(df['time:timestamp'] >= pd.Timestamp(f"{eff_start} 00:00:00")) &
                     (df['time:timestamp'] <= pd.Timestamp(f"{eff_end} 23:59:59"))]
